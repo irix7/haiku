@@ -17,6 +17,8 @@
 #include <image.h>
 #include <video_overlay.h>
 
+#include <front_buffer_hook.h>
+
 
 class AccelerantBuffer;
 class RenderingBuffer;
@@ -90,6 +92,8 @@ protected:
 	virtual	void				_CopyBackToFront(/*const*/ BRegion& region);
 
 	virtual	void				_DrawCursor(IntRect area) const;
+	virtual	void				_FrontBufferUpdated(int32 left, int32 top,
+									int32 right, int32 bottom) const;
 
 private:
 			int					_OpenGraphicsDevice(int deviceNumber);
@@ -145,6 +149,9 @@ private:
 			// brightness hooks
 			set_brightness		fAccSetBrightness;
 			get_brightness		fAccGetBrightness;
+
+			// front buffer hook
+			front_buffer_updated	fAccFrontBufferUpdated;
 
 			// overlay hooks
 			overlay_count				fAccOverlayCount;

@@ -177,6 +177,11 @@ protected:
 	// implement this in derived classes
 	virtual	void				_DrawCursor(IntRect area) const;
 
+	// Called after a rectangle of the front buffer has been written, for
+	// front buffers that are not the screen itself.
+	virtual	void				_FrontBufferUpdated(int32 left, int32 top,
+									int32 right, int32 bottom) const;
+
 	// does the actual transfer and handles color space conversion
 			void				_CopyToFront(uint8* src, uint32 srcBPR, int32 x,
 									int32 y, int32 right, int32 bottom) const;

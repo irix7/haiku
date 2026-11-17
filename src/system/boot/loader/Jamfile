@@ -84,6 +84,10 @@ for platform in [ MultiBootSubDirSetup ] {
 				{
 					DEFINES += BOOT_SUPPORT_ELF32 ;
 				}
+				case "mips" :
+				{
+					DEFINES += BOOT_SUPPORT_ELF32 ;
+				}
 				case "arm" :
 				{
 					DEFINES += BOOT_SUPPORT_ELF32 ;

@@ -322,6 +322,20 @@ probe_keyboard(void)
 		}
 	}
 
+#ifdef __mips__
+	{
+		// Select scancode set 1, the set the driver decodes. The controller
+		// does not translate.
+		uint8 scancodeSet = 1;
+		status = ps2_dev_command(&ps2_device[PS2_DEVICE_KEYB], 0xf0,
+			&scancodeSet, 1, NULL, 0);
+		if (status != B_OK) {
+			ERROR("ps2: selecting scancode set 1 failed, status 0x%08"
+				B_PRIx32 "\n", status);
+		}
+	}
+#endif
+
 	// default settings after keyboard reset: delay = 0x01 (500 ms),
 	// rate = 0x0b (10.9 chr/sec)
 	sKeyboardRepeatRate = ((31 - 0x0b) * 280) / 31 + 20;

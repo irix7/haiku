@@ -21,6 +21,8 @@
 #define _MAX_PAGE_SHIFT 12
 #elif B_PAGE_SIZE == 8192
 #define _MAX_PAGE_SHIFT 13
+#elif B_PAGE_SIZE == 16384
+#define _MAX_PAGE_SHIFT 14
 #endif
 
 extern char* __progname;

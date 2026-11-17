@@ -99,6 +99,22 @@ actions BuildBiosLoader {
 }
 
 
+rule BuildEcoffLoader {
+	local haikuLoader = $(1) ;
+	local bootLoader = $(2) ;
+
+	Depends $(haikuLoader) : $(bootLoader) ;
+	MakeLocateDebug $(haikuLoader) ;
+}
+
+
+actions BuildEcoffLoader {
+	$(RM) -f $(1)
+	python3 $(HAIKU_TOP)/build/scripts/elf2ecoff.py $(2) $(1)
+}
+
+
+
 #
 # EFI loader creation
 #
@@ -461,6 +477,9 @@ for platform in [ MultiBootSubDirSetup ] {
 
 			case next_m68k :
 				BuildAoutLoader haiku_loader.$(TARGET_BOOT_PLATFORM) : <revisioned>boot_loader_$(TARGET_BOOT_PLATFORM) ;
+
+			case arcs :
+				BuildEcoffLoader haiku_loader.$(TARGET_BOOT_PLATFORM) : <revisioned>boot_loader_$(TARGET_BOOT_PLATFORM) ;
 
 			case * :
 				Exit "Currently unsupported haiku_loader:" $(TARGET_BOOT_PLATFORM) ;

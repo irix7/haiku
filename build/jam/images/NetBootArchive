@@ -46,28 +46,51 @@ SYSTEM_ADD_ONS_FILE_SYSTEMS =
 	packagefs
 	;
 
-
-# modules
-AddFilesToNetBootArchive system add-ons kernel bus_managers
-	: $(SYSTEM_ADD_ONS_BUS_MANAGERS) ;
-AddFilesToNetBootArchive system add-ons kernel busses agp_gart :
-	<agp_gart>intel@x86
-	;
-AddFilesToNetBootArchive system add-ons kernel busses ide :
+local netBootBusses =
+	ahci
 	generic_ide_pci
 	ide_isa@x86
 	silicon_image_3112
 	;
-AddFilesToNetBootArchive system add-ons kernel busses scsi :
-	ahci
-	;
-AddFilesToNetBootArchive system add-ons kernel console :
-	vga_text
-	;
+
+if $(TARGET_ARCH) = mips {
+	# The SGI Indy has no PCI, ISA, USB or ACPI. Its devices are published by
+	# the "indy" bus manager. The archive holds what the kernel needs to
+	# mount the boot volume from a SCSI disk.
+	SYSTEM_ADD_ONS_DRIVERS_NET = seeq8003 ;
+	SYSTEM_ADD_ONS_BUS_MANAGERS = indy scsi ;
+	# scsi_disk is a boot module here: the boot volume is on a SCSI disk.
+	netBootBusses = wd33c93_hpc3 scsi_disk ;
+}
+
+
+# modules
+AddFilesToNetBootArchive system add-ons kernel bus_managers
+	: $(SYSTEM_ADD_ONS_BUS_MANAGERS) ;
+if $(TARGET_ARCH) = mips {
+	AddFilesToNetBootArchive system add-ons kernel busses scsi :
+		wd33c93_hpc3
+		;
+} else {
+	AddFilesToNetBootArchive system add-ons kernel busses agp_gart :
+		<agp_gart>intel@x86
+		;
+	AddFilesToNetBootArchive system add-ons kernel busses ide :
+		generic_ide_pci
+		ide_isa@x86
+		silicon_image_3112
+		;
+	AddFilesToNetBootArchive system add-ons kernel busses scsi :
+		ahci
+		;
+	AddFilesToNetBootArchive system add-ons kernel console :
+		vga_text
+		;
+}
 AddFilesToNetBootArchive system add-ons kernel file_systems
 	: $(SYSTEM_ADD_ONS_FILE_SYSTEMS) ;
 AddFilesToNetBootArchive system add-ons kernel generic :
-	ata_adapter
+	ata_adapter@!mips
 	scsi_periph
     smbios@x86,x86_64
 	;
@@ -128,12 +151,9 @@ AddFilesToNetBootArchive
 # boot module links
 AddBootModuleSymlinksToNetBootArchive
 	$(SYSTEM_ADD_ONS_BUS_MANAGERS)
-	ahci
-	generic_ide_pci
-	ide_isa@x86
-	silicon_image_3112
+	$(netBootBusses)
 	$(SYSTEM_ADD_ONS_FILE_SYSTEMS)
-	ata_adapter
+	ata_adapter@!mips
 	scsi_periph
 	intel
 	session
@@ -197,3 +217,31 @@ RmTemps $(HAIKU_NET_BOOT_ARCHIVE) :
 
 NotFile haiku-netboot-archive ;
 Depends haiku-netboot-archive : $(HAIKU_NET_BOOT_ARCHIVE) ;
+
+
+#pragma mark - Netboot file for the SGI Indy
+
+# "jam haiku-netboot-indy" builds the file the PROM loads with
+# "boot -f bootp()haiku": the boot loader in ECOFF format with the archive
+# appended. The PROM transfers it with TFTP, so its size is limited.
+
+rule BuildIndyNetBootFile target : loader : archive
+{
+	Depends $(target) : $(loader) $(archive) ;
+	MakeLocate $(target) : $(HAIKU_OUTPUT_DIR) ;
+	BuildIndyNetBootFile1 $(target) : $(loader) $(archive) ;
+}
+
+actions BuildIndyNetBootFile1
+{
+	$(RM) $(1)
+	python3 $(HAIKU_TOP)/build/scripts/elf2ecoff.py $(2[1]) $(1) \
+		--append $(2[2]) --max-size 12582912
+}
+
+if $(TARGET_ARCH) = mips {
+	BuildIndyNetBootFile haiku-indy-netboot
+		: <revisioned>boot_loader_arcs $(HAIKU_NET_BOOT_ARCHIVE) ;
+	NotFile haiku-netboot-indy ;
+	Depends haiku-netboot-indy : haiku-indy-netboot ;
+}

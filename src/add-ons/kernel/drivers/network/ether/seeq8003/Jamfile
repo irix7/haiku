@@ -1,0 +1,9 @@
+SubDir HAIKU_TOP src add-ons kernel drivers network ether seeq8003 ;
+
+# For ether_driver.h
+UsePrivateHeaders net ;
+UsePrivateKernelHeaders ;
+
+KernelAddon seeq8003 :
+	driver.cpp
+	;

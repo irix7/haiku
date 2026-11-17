@@ -41,6 +41,7 @@ rule ArchitectureSetup architecture
 		case arm64 : archFlags += -march=armv8-a+crc ;
 		case x86 : archFlags += -march=pentium ;
 		case riscv64 : archFlags += -march=rv64gc ;
+		case mips : archFlags += -march=mips3 -mtune=r4600 -mabi=n32 ;
 	}
 	if $(HAIKU_CC_IS_CLANG_$(architecture)) = 1 {
 		# lld doesn't currently implement R_RISCV_ALIGN relaxation
@@ -63,6 +64,13 @@ rule ArchitectureSetup architecture
 	HAIKU_CCFLAGS_$(architecture) += $(ccBaseFlags) -nostdinc ;
 	HAIKU_C++FLAGS_$(architecture) += $(ccBaseFlags) -nostdinc ;
 	HAIKU_LINKFLAGS_$(architecture) += $(ccBaseFlags) ;
+
+	if $(cpu) = mips {
+		# The mips port builds with GCC 17, which defaults to gnu23 and
+		# gnu++20. The tree is written for the defaults of GCC 13.
+		HAIKU_CCFLAGS_$(architecture) += -std=gnu17 ;
+		HAIKU_C++FLAGS_$(architecture) += -std=gnu++17 ;
+	}
 
 	# strip is required
 	if ! $(HAIKU_STRIP_$(architecture)) {
@@ -284,6 +292,15 @@ rule KernelArchitectureSetup architecture
 			HAIKU_BOOT_ARCHIVE_IMAGE_OFFSET = 192 ; # in kB - unused yet
 			HAIKU_BOOT_LOADER_BASE ?= 0x1000000 ;
 
+		case mips :
+			# SGI Indy, netbooted by the ARCS PROM
+			HAIKU_KERNEL_PLATFORM ?= arcs ;
+			HAIKU_BOOT_TARGETS += arcs ;
+
+			HAIKU_BOOT_FLOPPY_IMAGE_SIZE = 1440 ;
+			# offset in floppy image (>= sizeof(haiku_loader))
+			HAIKU_BOOT_ARCHIVE_IMAGE_OFFSET = 192 ; # in kB - unused
+
 		case x86 :
 			HAIKU_KERNEL_PLATFORM ?= bios_ia32 ;
 			HAIKU_BOOT_TARGETS += bios_ia32 efi pxe_ia32 ;
@@ -411,6 +428,20 @@ rule KernelArchitectureSetup architecture
 			# 040 and 060 in the kernel.
 			HAIKU_KERNEL_CCFLAGS += -m68020-60 ;
 			HAIKU_KERNEL_C++FLAGS += -m68020-60 ;
+
+		case mips :
+			# The kernel is linked at a fixed kseg0 address and is not
+			# position independent. Add-ons are position independent, which
+			# is the compiler's default. Kernel code does not use the FPU
+			# and does not use $gp relative data.
+			# -fno-pic alone still gives position independent code on MIPS.
+			# With -mno-shared and -mplt the compiler addresses data and
+			# functions absolutely, and still calls through function
+			# pointers with the target in $25, as add-on code expects.
+			HAIKU_KERNEL_PIC_CCFLAGS = -fno-pic -mno-shared -mplt ;
+			HAIKU_KERNEL_CCFLAGS += -msoft-float -G0 ;
+			HAIKU_KERNEL_C++FLAGS += -msoft-float -G0 ;
+			HAIKU_KERNEL_ADDON_LINKFLAGS += -z max-page-size=0x4000 ;
 
 		case ppc :
 			# Build a position independent PPC kernel. We need to be able to
@@ -559,6 +590,13 @@ rule KernelArchitectureSetup architecture
 			case openfirmware :
 				HAIKU_BOOT_$(bootTarget:U)_CCFLAGS += -fno-pic -Wno-error=main -Wstack-usage=1023 ;
 				HAIKU_BOOT_$(bootTarget:U)_C++FLAGS += -fno-pic -Wno-error=main -Wstack-usage=1023 ;
+			case arcs :
+				# The loader is linked at the PROM's netboot address. It does
+				# not use the FPU.
+				HAIKU_BOOT_$(bootTarget:U)_CCFLAGS += -fno-pic -mno-shared -mplt
+					-msoft-float -G0 -Wno-error=main ;
+				HAIKU_BOOT_$(bootTarget:U)_C++FLAGS += -fno-pic -mno-shared
+					-mplt -msoft-float -G0 -Wno-error=main ;
 			case * :
 				# all other bootloaders are non-PIC
 				HAIKU_BOOT_$(bootTarget:U)_CCFLAGS += -fno-pic -Wno-error=main ;
@@ -614,6 +652,9 @@ rule ArchitectureSetupWarnings architecture
 		case m68k :
 			return ;
 				# we use #warning as placeholders for things to write...
+		case mips :
+			return ;
+				# the port builds with a newer GCC than the rest of the tree
 		case ppc :
 			return ;
 				# we use #warning as placeholders for things to write...

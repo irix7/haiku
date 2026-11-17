@@ -419,6 +419,12 @@ kernel_args_malloc(size_t size, uint8 alignment)
 	//dprintf("kernel_args_malloc(): %ld bytes (%ld bytes left)\n", size, sFree);
 
 	#define ALIGN(addr, align) (((addr) + align - 1) & ~(align - 1))
+#ifdef __mips__
+	// MIPS traps on unaligned accesses, and the kernel accesses some of the
+	// structures allocated here through pointers to their members.
+	if (alignment < 8)
+		alignment = 8;
+#endif
 	size_t alignedSize = size + alignment - 1;
 
 	if (sFirstFree != NULL && alignedSize <= sFree) {

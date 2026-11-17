@@ -685,6 +685,9 @@ get_executable_architecture(int fd, const char** _architecture)
 		case EM_RISCV:
 			architecture = "riscv";
 			break;
+		case EM_MIPS:
+			architecture = "mips";
+			break;
 	}
 
 	if (architecture == NULL)

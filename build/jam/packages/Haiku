@@ -58,6 +58,7 @@ AddFilesToPackage add-ons kernel busses random :
 	;
 AddFilesToPackage add-ons kernel busses scsi :
 	ahci
+	wd33c93_hpc3@mips
 	hyperv_scsi@x86,x86_64
 	ufshci
 	virtio_scsi
@@ -325,6 +326,7 @@ AddFilesToPackage data Terminal Themes : $(terminalThemes) ;
 AddBootModuleSymlinksToPackage
 	acpi@x86,x86_64,arm64
 	ahci
+	wd33c93_hpc3@mips
 	ata
 	ata_adapter
 	bfs
@@ -335,7 +337,7 @@ AddBootModuleSymlinksToPackage
 	hyperv@x86,x86_64
 	hyperv_scsi@x86,x86_64
 	ide_isa@x86
-	isa@x86,x86_64
+	isa@x86,x86_64,mips
 	intel
 	it8211
 	legacy_sata

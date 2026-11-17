@@ -39,6 +39,23 @@ if $(HAIKU_BUILD_FEATURE_SSL) {
 }
 
 
+# Seed directory for the mips port, see indy/toolchain/seed.sh.
+HAIKU_MIPS_SEED_DIR ?= /mnt/europa/haiku-toolchain/seed ;
+
+rule SeedBuildFeatureAttribute feature : attribute : relativePath
+{
+	# SeedBuildFeatureAttribute <feature> : <attribute> : <relativePath> ;
+	# Sets a build feature attribute to a file or directory of the seed
+	# directory, the way ExtractBuildFeatureArchives does for a package.
+	local target = $(relativePath:G=$(feature)!seed) ;
+	SEARCH on $(target) = $(HAIKU_MIPS_SEED_DIR) ;
+	NoUpdate $(target) ;
+	SetBuildFeatureAttribute $(feature) : $(attribute) : $(target) : seed ;
+	SetBuildFeatureAttribute $(feature) : seed:directory
+		: $(HAIKU_MIPS_SEED_DIR) ;
+}
+
+
 # gcc_syslibs
 
 if $(TARGET_PACKAGING_ARCH) != x86_gcc2 {
@@ -88,6 +105,24 @@ if [ IsPackageAvailable gcc_syslibs_devel ] {
 				gcc-headers: $(developHeadersDir)/gcc
 			;
 	}
+
+	EnableBuildFeatures gcc_syslibs_devel ;
+} else if $(TARGET_PACKAGING_ARCH) = mips
+	&& [ Glob $(HAIKU_MIPS_SEED_DIR)/lib : libgcc-kernel.a ] {
+	# No HaikuPorts packages exist for mips yet. The libraries and headers
+	# come from a seed directory that indy/toolchain/seed.sh fills from the
+	# cross toolchain.
+	local seedAttribute ;
+	for seedAttribute in libgcc.a libgcc_eh.a libgcc-kernel.a libgcc-boot.a
+			libgcc_eh-boot.a libstdc++.a libsupc++.a libsupc++-kernel.a
+			libsupc++-boot.a {
+		SeedBuildFeatureAttribute gcc_syslibs_devel : $(seedAttribute)
+			: lib/$(seedAttribute) ;
+	}
+	SeedBuildFeatureAttribute gcc_syslibs_devel : libgcc_eh-kernel.a
+		: lib/libgcc_eh.a ;
+	SeedBuildFeatureAttribute gcc_syslibs_devel : c++-headers : headers/c++ ;
+	SeedBuildFeatureAttribute gcc_syslibs_devel : gcc-headers : headers/gcc ;
 
 	EnableBuildFeatures gcc_syslibs_devel ;
 } else {
@@ -400,6 +435,13 @@ if [ IsPackageAvailable zlib_devel ] {
 				sources: develop/sources/%portRevisionedName%/sources
 		}@
 		;
+
+	EnableBuildFeatures zlib ;
+} else if $(TARGET_PACKAGING_ARCH) = mips
+	&& [ Glob $(HAIKU_MIPS_SEED_DIR)/zlib/sources : zlib.h ] {
+	# The kernel and the boot loader compile zlib from its sources.
+	SeedBuildFeatureAttribute zlib : sources : zlib/sources ;
+	SeedBuildFeatureAttribute zlib : headers : zlib/sources ;
 
 	EnableBuildFeatures zlib ;
 } else {
