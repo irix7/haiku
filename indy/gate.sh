@@ -17,6 +17,8 @@
 #   RAM             megabytes of RAM in bank 0: 8, 16, 32, 64 or 128
 #                   (default 64)
 #   DISK            raw disk image to attach as SCSI ID 1
+#   BOOT_ARGS       words added to the PROM boot command, for example "disk"
+#                   to boot from the SCSI disk and not from a remote disk
 #   IRIS_ARGS       extra emulator options, for example "--cpu r5000"
 set -euo pipefail
 
@@ -96,7 +98,7 @@ ic start
 ic serial-wait 'Option?' --timeout 60
 ic serial-send '5'
 ic serial-wait '>>' --timeout 30
-ic serial-send 'boot -f bootp()haiku'
+ic serial-send "boot -f bootp()haiku${BOOT_ARGS:+ $BOOT_ARGS}"
 ic serial-wait 'entry: 0x' --timeout 60
 ic serial-wait "$MARKER" --timeout "$TIMEOUT"
 

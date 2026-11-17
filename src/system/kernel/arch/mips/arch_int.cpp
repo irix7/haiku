@@ -393,13 +393,106 @@ emulate_rdhwr(iframe* frame)
 	through plain pointers, which the compiler takes to be aligned.
 	Returns false if the instruction is not a load or store this handles.
 */
+/*!	Computes where a branch or jump instruction at \a pc continues, and sets
+	the link register if the instruction has one. Used when an emulated
+	instruction sits in the delay slot of that branch.
+	Returns false for an instruction that is not a branch or jump.
+*/
+static bool
+emulate_branch(iframe* frame, addr_t pc, uint64* _nextPC)
+{
+	uint32 instruction = *(uint32*)pc;
+	uint32 opcode = instruction >> 26;
+	uint32 rs = (instruction >> 21) & 0x1f;
+	uint32 rt = (instruction >> 16) & 0x1f;
+	int64 a = (int64)frame->r[rs];
+	int64 b = (int64)frame->r[rt];
+	if (rs == 0)
+		a = 0;
+	if (rt == 0)
+		b = 0;
+
+	uint64 fallThrough = mips_sign_extend(pc + 8);
+	uint64 branchTarget = mips_sign_extend(
+		pc + 4 + ((int32)(int16)(instruction & 0xffff)) * 4);
+	bool taken;
+
+	switch (opcode) {
+		case 0x00:	// special: jr, jalr
+		{
+			uint32 function = instruction & 0x3f;
+			if (function != 0x08 && function != 0x09)
+				return false;
+			*_nextPC = (uint64)a;
+			if (function == 0x09) {
+				uint32 rd = (instruction >> 11) & 0x1f;
+				if (rd != 0)
+					frame->r[rd] = fallThrough;
+			}
+			return true;
+		}
+
+		case 0x01:	// regimm: bltz, bgez and their linking and likely forms
+			switch (rt & 0x0f) {
+				case 0x00:
+				case 0x02:
+					taken = a < 0;
+					break;
+				case 0x01:
+				case 0x03:
+					taken = a >= 0;
+					break;
+				default:
+					return false;
+			}
+			if ((rt & 0x10) != 0)
+				frame->r[MIPS_REG_RA] = fallThrough;
+			break;
+
+		case 0x02:	// j
+		case 0x03:	// jal
+			*_nextPC = mips_sign_extend(((pc + 4) & 0xf0000000)
+				| ((instruction & 0x03ffffff) << 2));
+			if (opcode == 0x03)
+				frame->r[MIPS_REG_RA] = fallThrough;
+			return true;
+
+		case 0x04:	// beq
+		case 0x14:	// beql
+			taken = a == b;
+			break;
+		case 0x05:	// bne
+		case 0x15:	// bnel
+			taken = a != b;
+			break;
+		case 0x06:	// blez
+		case 0x16:	// blezl
+			taken = a <= 0;
+			break;
+		case 0x07:	// bgtz
+		case 0x17:	// bgtzl
+			taken = a > 0;
+			break;
+
+		default:
+			return false;
+	}
+
+	// The delay slot of a "likely" branch runs only if the branch is taken,
+	// so a fault there means it is.
+	*_nextPC = taken ? branchTarget : fallThrough;
+	return true;
+}
+
+
 static bool
 emulate_unaligned_access(iframe* frame, addr_t address)
 {
-	if ((frame->cause & CP0_CAUSE_BD) != 0)
-		return false;
+	// In a delay slot the faulting instruction follows the branch at epc.
+	bool inDelaySlot = (frame->cause & CP0_CAUSE_BD) != 0;
+	addr_t pc = (addr_t)frame->epc + (inDelaySlot ? 4 : 0);
 
-	uint32 instruction = *(uint32*)(addr_t)frame->epc;
+	uint32 instruction = *(uint32*)pc;
 	uint32 opcode = instruction >> 26;
 	uint32 target = (instruction >> 16) & 0x1f;
 	uint8* memory = (uint8*)address;
@@ -441,6 +534,12 @@ emulate_unaligned_access(iframe* frame, addr_t address)
 			return false;
 	}
 
+	// The branch decides before its delay slot runs, so evaluate it before
+	// the load changes a register.
+	uint64 nextPC = frame->epc + 4;
+	if (inDelaySlot && !emulate_branch(frame, (addr_t)frame->epc, &nextPC))
+		return false;
+
 	// big-endian: the most significant byte is first
 	if (isStore) {
 		uint64 value = frame->r[target];
@@ -458,7 +557,7 @@ emulate_unaligned_access(iframe* frame, addr_t address)
 			frame->r[target] = value;
 	}
 
-	frame->epc += 4;
+	frame->epc = nextPC;
 	return true;
 }
 

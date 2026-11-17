@@ -56,7 +56,7 @@ Rules:
 | M4 modules, interrupts, storage | `haiku: m4 boot volume mounted` | M4.1 to M4.4 work on iris 2026-11-18: add-ons load, `wd33c93: controller ready`, the disk is published as `disk/scsi/0/1/0/raw`, and with a BFS image the log shows `bfs: mounted "Haiku"` and `Mounted boot partition`. The boot then stops at `error starting "/boot/system/servers/launch_daemon"`, because the volume is empty. M4.5 (interrupts, DMA) not written. |
 | M5 userland | `haiku: m5 userland` | Arch files written (M5.1 to M5.3). M5.4 to M5.6 not started. |
 | M6 desktop | `haiku: m6 desktop` plus screenshot | M6.1 done on iris 2026-11-18 (`make -C indy gate-rex3`, both gradients drawn). Driver, accelerant, app_server hook, isa and ps2 changes written, not run. |
-| M7 network | `haiku: m7 ping ok` | Driver written, not run. |
+| M7 network | `haiku: m7 ping ok` | The Seeq driver works on iris 2026-11-18: the kernel configures the interface and mounts its boot volume from a RemoteDisk server (D10a). DHCP and ping from userland not run. |
 | M8 physical Indy | same markers on the machine's serial port | Not started |
 | M9 performance on the R4600 | measured gains recorded per task | Not started |
 
@@ -639,6 +639,24 @@ with `nop`, `tlbwr`, `nop`, the `$k1` load of D11, `eret`. Bring-up uses ASID 0
 and flushes all entries on an address space switch. Task M9.1 adds ASIDs. An
 unused TLB entry gets `EntryHi = 0x8000_0000 + index * 0x8000`, which can never
 match. `Wired` stays 0 until M9.2.
+
+**D10a. Root volume over the network (added 2026-11-18).** The default boot
+volume is a RemoteDisk: a BFS image served by `remote_disk_server` (a host
+tool of this tree, `jam remote_disk_server`) over UDP port 8765. The loader
+passes `BOOT_METHOD_NET`, the station address from the NVRAM and the PROM's
+`$netaddr` as the client IP. The kernel brings up `/dev/net/seeq8003/0` itself
+(`vfs_net_boot.cpp`) and mounts the BFS volume of
+`/dev/disk/virtual/remote_disk/0/raw`. The Indy's own disk is not touched.
+The driver finds the server with a broadcast. `server=ADDRESS` on the PROM
+command line, or the PROM variable `haikuserver`, names a server instead (the
+loader hands the kernel a driver settings file `remote_disk`). The argument
+`disk` on the PROM command line selects the SCSI disk path of D10. Verified on
+iris: `BOOT_ARGS="server=192.168.0.1" ./indy/gate.sh
+generated.mips/haiku-indy-netboot "Mounted boot partition"` with the server
+running on the host. iris's NAT does not relay broadcasts, so the gate needs
+`server=`. The protocol has no authentication: trusted networks only. A server
+behind a router also needs a gateway, which the kernel's boot-time setup does
+not configure yet.
 
 **D10. Boot path.** The netboot file `haiku` is the ECOFF loader with the
 netboot archive appended. The archive is a gzip tar holding the kernel and the

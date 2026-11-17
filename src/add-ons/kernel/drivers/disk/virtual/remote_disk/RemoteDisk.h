@@ -20,7 +20,9 @@ public:
 			status_t			Init(uint32 serverAddress, uint16 serverPort,
 									off_t imageSize);
 
-			status_t			FindAnyRemoteDisk();
+			status_t			FindAnyRemoteDisk(
+									uint32 serverIP = INADDR_BROADCAST);
+										// serverIP: host byte order
 
 			ssize_t				ReadAt(off_t pos, void *buffer,
 									size_t bufferSize);
