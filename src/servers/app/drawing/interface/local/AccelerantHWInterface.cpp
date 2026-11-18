@@ -116,6 +116,7 @@ AccelerantHWInterface::AccelerantHWInterface()
 	// brightness hooks
 	fAccSetBrightness(NULL),
 	fAccGetBrightness(NULL),
+	fAccFrontBufferUpdated(NULL),
 
 	// overlay hooks
 	fAccOverlayCount(NULL),
@@ -395,6 +396,10 @@ AccelerantHWInterface::_SetupDefaultHooks()
 	// brightness
 	fAccGetBrightness = (get_brightness)fAccelerantHook(B_GET_BRIGHTNESS, NULL);
 	fAccSetBrightness = (set_brightness)fAccelerantHook(B_SET_BRIGHTNESS, NULL);
+
+	// front buffer updates, for displays without an addressable frame buffer
+	fAccFrontBufferUpdated = (front_buffer_updated)fAccelerantHook(
+		B_FRONT_BUFFER_UPDATED, NULL);
 
 	return B_OK;
 }
@@ -1367,6 +1372,15 @@ AccelerantHWInterface::_CopyBackToFront(/*const*/ BRegion& region)
 
 
 // #pragma mark -
+
+
+void
+AccelerantHWInterface::_FrontBufferUpdated(int32 left, int32 top, int32 right,
+	int32 bottom) const
+{
+	if (fAccFrontBufferUpdated != NULL)
+		fAccFrontBufferUpdated(left, top, right, bottom);
+}
 
 
 void

@@ -1,0 +1,7 @@
+SubDir HAIKU_TOP src add-ons kernel busses scsi wd33c93_hpc3 ;
+
+UsePrivateKernelHeaders ;
+
+KernelAddon wd33c93_hpc3 :
+	wd33c93.cpp
+	;

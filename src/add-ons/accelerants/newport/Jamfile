@@ -1,0 +1,11 @@
+SubDir HAIKU_TOP src add-ons accelerants newport ;
+
+UsePrivateHeaders graphics ;
+UsePrivateHeaders [ FDirName graphics newport ] ;
+UsePrivateHeaders [ FDirName graphics common ] ;
+UsePrivateHeaders shared ;
+
+Addon newport.accelerant :
+	accelerant.cpp
+	upload.cpp
+;

@@ -875,6 +875,15 @@ HWInterface::_CopyToFront(uint8* src, uint32 srcBPR, int32 x, int32 y,
 				"front buffer format! (0x%x)\n", frontBuffer->ColorSpace());
 			break;
 	}
+
+	_FrontBufferUpdated(x, y, right, bottom);
+}
+
+
+void
+HWInterface::_FrontBufferUpdated(int32 left, int32 top, int32 right,
+	int32 bottom) const
+{
 }
 
 

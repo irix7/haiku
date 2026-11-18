@@ -149,6 +149,11 @@ ps2_setup_command_byte(bool interruptsEnabled)
 		cmdbyte = 0x47;
 
 	cmdbyte |= PS2_BITS_TRANSLATE_SCANCODES;
+#ifdef __mips__
+	// The SGI Indy's controller is left untranslated. The keyboard is
+	// switched to scancode set 1 instead (see probe_keyboard()).
+	cmdbyte &= ~PS2_BITS_TRANSLATE_SCANCODES;
+#endif
 	cmdbyte &= ~(PS2_BITS_KEYBOARD_DISABLED | PS2_BITS_MOUSE_DISABLED);
 
 	if (interruptsEnabled)

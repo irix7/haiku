@@ -1,0 +1,7 @@
+SubDir HAIKU_TOP src add-ons kernel bus_managers indy ;
+
+UsePrivateKernelHeaders ;
+
+KernelAddon indy :
+	indy.cpp
+	;

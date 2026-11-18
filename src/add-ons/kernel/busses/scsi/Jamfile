@@ -7,3 +7,4 @@ SubInclude HAIKU_TOP src add-ons kernel busses scsi hyperv ;
 SubInclude HAIKU_TOP src add-ons kernel busses scsi ufshci ;
 SubInclude HAIKU_TOP src add-ons kernel busses scsi usb ;
 SubInclude HAIKU_TOP src add-ons kernel busses scsi virtio ;
+SubInclude HAIKU_TOP src add-ons kernel busses scsi wd33c93_hpc3 ;

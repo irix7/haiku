@@ -72,7 +72,8 @@ BPackageInfo::kArchitectureNames[B_PACKAGE_ARCHITECTURE_ENUM_COUNT] = {
 	"m68k",
 	"sparc",
 	"arm64",
-	"riscv64"
+	"riscv64",
+	"mips"
 };
 
 

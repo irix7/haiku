@@ -16,7 +16,7 @@
 #include <arch/x86_64/arch_debugger.h>
 #include <arch/ppc/arch_debugger.h>
 #include <arch/m68k/arch_debugger.h>
-#include <arch/mipsel/arch_debugger.h>
+#include <arch/mips/arch_debugger.h>
 #include <arch/arm/arch_debugger.h>
 #include <arch/arm64/arch_debugger.h>
 #include <arch/riscv64/arch_debugger.h>
@@ -31,8 +31,8 @@
 	typedef struct ppc_debug_cpu_state debug_cpu_state;
 #elif defined(__M68K__)
 	typedef struct m68k_debug_cpu_state debug_cpu_state;
-#elif defined(__MIPSEL__)
-	typedef struct mipsel_debug_cpu_state debug_cpu_state;
+#elif defined(__mips__)
+	typedef struct mips_debug_cpu_state debug_cpu_state;
 #elif defined(__arm__)
 	typedef struct arm_debug_cpu_state debug_cpu_state;
 #elif (defined(__riscv) && __riscv_xlen == 64)

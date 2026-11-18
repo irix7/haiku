@@ -112,7 +112,7 @@ RemoteDisk::Init(uint32 serverAddress, uint16 serverPort, off_t imageSize)
 
 // FindAnyRemoteDisk
 status_t
-RemoteDisk::FindAnyRemoteDisk()
+RemoteDisk::FindAnyRemoteDisk(uint32 serverIP)
 {
 	status_t error = _Init();
 	if (error != B_OK)
@@ -122,10 +122,10 @@ RemoteDisk::FindAnyRemoteDisk()
 	remote_disk_header request;
 	request.command = REMOTE_DISK_HELLO_REQUEST;
 
-	// init server address to broadcast
+	// init server address to broadcast, or to the configured server
 	fServerAddress.sin_family = AF_INET;
 	fServerAddress.sin_port = htons(REMOTE_DISK_SERVER_PORT);
-	fServerAddress.sin_addr.s_addr = htonl(INADDR_BROADCAST);
+	fServerAddress.sin_addr.s_addr = htonl(serverIP);
 	fServerAddress.sin_len = sizeof(sockaddr_in);
 
 	// set SO_BROADCAST on socket

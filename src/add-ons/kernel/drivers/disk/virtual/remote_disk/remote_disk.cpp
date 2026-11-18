@@ -3,9 +3,11 @@
  * All rights reserved. Distributed under the terms of the MIT License.
  */
 
+#include <stdlib.h>
 #include <string.h>
 
 #include <KernelExport.h>
+#include <driver_settings.h>
 #include <Drivers.h>
 
 #include <lock.h>
@@ -13,6 +15,28 @@
 #include <util/kernel_cpp.h>
 
 #include "RemoteDisk.h"
+
+
+/*!	Parses a dotted IPv4 address. The result is in host byte order. */
+static bool
+parse_ip_address(const char* string, uint32* _address)
+{
+	uint32 address = 0;
+	for (int i = 0; i < 4; i++) {
+		char* end;
+		unsigned long part = strtoul(string, &end, 10);
+		if (end == string || part > 255)
+			return false;
+		address = (address << 8) | part;
+		if (i < 3) {
+			if (*end != '.')
+				return false;
+			string = end + 1;
+		}
+	}
+	*_address = address;
+	return true;
+}
 
 
 //#define TRACE_REMOTE_DISK
@@ -76,9 +100,24 @@ struct RemoteDiskDevice : recursive_lock {
 			return B_NO_MEMORY;
 		}
 
-		// find a server
+		// Find a server: the one named by the "server" parameter of the
+		// driver settings "remote_disk" (a dotted IPv4 address), or any
+		// server that answers a broadcast.
+		uint32 serverAddress = INADDR_BROADCAST;
+		void* settings = load_driver_settings("remote_disk");
+		if (settings != NULL) {
+			const char* server = get_driver_parameter(settings, "server",
+				NULL, NULL);
+			uint32 address;
+			if (server != NULL && parse_ip_address(server, &address)) {
+				serverAddress = address;
+				dprintf("remote_disk: using server %s\n", server);
+			}
+			unload_driver_settings(settings);
+		}
+
 		TRACE(("remote_disk: FindAnyRemoteDisk()\n"));
-		status_t error = remoteDisk->FindAnyRemoteDisk();
+		status_t error = remoteDisk->FindAnyRemoteDisk(serverAddress);
 		if (error != B_OK) {
 			delete remoteDisk;
 			remoteDisk = NULL;
