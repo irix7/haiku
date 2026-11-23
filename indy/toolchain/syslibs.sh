@@ -4,14 +4,16 @@
 # (haikuporter) takes these two packages as its stage 0, so it does not build
 # GCC itself.
 #
-# Usage: indy/toolchain/syslibs.sh OUTPUT_DIR
+# Usage: indy/toolchain/syslibs.sh OUTPUT_DIR [all|package]
+#   package     skips the GCC build and packages what the last one installed
 #   OUTPUT_DIR  the Haiku build directory (generated.mips): it provides the
 #               stub libroot and the "package" tool.
 #
-# This script has not been run. It records the steps; expect to adjust them.
+# Run inside the devshell (nix develop).
 set -euo pipefail
 
-OUTPUT="${1:?usage: syslibs.sh OUTPUT_DIR}"
+OUTPUT="${1:?usage: syslibs.sh OUTPUT_DIR [all|package]}"
+STEP="${2:-all}"
 TOP="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 ROOT="${HAIKU_TOOLCHAIN:-/mnt/europa/haiku-toolchain}"
 PREFIX="$ROOT/cross-tools-mips"
@@ -20,23 +22,35 @@ TARGET=mips-unknown-haiku
 JOBS="${JOBS:-$(nproc)}"
 STAGE="$ROOT/build/syslibs"
 
-# 1. The target libraries link against libroot. Build the stub libroot and
-#    put it and the start files into the sysroot.
-(cd "$OUTPUT" && jam -q "<bootstrap>libroot_stubs.so" crti.o crtn.o \
-	start_dyn.o init_term_dyn.o)
+export PATH="$ROOT/cross-tools-mips/bin:$PATH"
+
+if [ "$STEP" != package ]; then
+# 1. The target libraries link against libroot. Put a stub libroot and the
+#    start files into the sysroot. The stub is built here: its jam target
+#    exists only in a build configured with --bootstrap.
+export PATH="$PREFIX/bin:$PATH"
 lib="$SYSROOT/boot/system/develop/lib"
-mkdir -p "$lib"
-find "$OUTPUT/objects" -name 'libroot_stubs.so' -exec cp {} "$lib/libroot.so" \;
-for object in crti.o crtn.o start_dyn.o init_term_dyn.o; do
-	find "$OUTPUT/objects" -name "$object" -exec cp {} "$lib/" \;
-done
+mkdir -p "$lib" "$STAGE"
+"$TOP/indy/jam.sh" '<src!system!glue!mips>start_dyn.o' \
+	'<src!system!glue!mips>init_term_dyn.o' \
+	'<src!system!glue!arch!mips!mips>crti.o' \
+	'<src!system!glue!arch!mips!mips>crtn.o' '<build>package'
+glue="$OUTPUT/objects/haiku/mips/release/system/glue"
+cp "$glue/start_dyn.o" "$glue/init_term_dyn.o" "$glue/arch/mips/crti.o" \
+	"$glue/arch/mips/crtn.o" "$lib/"
+$TARGET-gcc -O2 -fno-builtin -w -c -I"$TOP/headers/private/system" \
+	"$TOP/src/system/libroot/stubbed/libroot_stubs.c" \
+	-o "$STAGE/libroot_stubs.o"
+$TARGET-ld -shared -soname=libroot.so \
+	--version-script "$TOP/src/system/libroot/libroot_versions" \
+	-o "$lib/libroot.so" "$STAGE/libroot_stubs.o"
 
 # 2. Rebuild the target libraries with shared libraries enabled.
-rm -rf "$ROOT/build/gcc-shared" "$STAGE"
+rm -rf "$ROOT/build/gcc-shared" "$STAGE/install" "$STAGE/gcc_syslibs" \
+	"$STAGE/gcc_syslibs_devel"
 mkdir -p "$ROOT/build/gcc-shared"
 cd "$ROOT/build/gcc-shared"
-export PATH="$PREFIX/bin:$PATH"
-"$ROOT/src/gcc/configure" \
+CFLAGS="-O2" CXXFLAGS="-O2" "$ROOT/src/gcc/configure" \
 	--prefix=/boot/system --target=$TARGET \
 	--disable-nls --enable-shared --with-system-zlib \
 	--enable-languages=c,c++ --enable-__cxa-atexit --enable-threads=posix \
@@ -52,32 +66,44 @@ make -j"$JOBS" all-gcc all-target-libgcc all-target-libstdc++-v3 MAKEINFO=true
 make DESTDIR="$STAGE/install" install-target-libgcc \
 	install-target-libstdc++-v3 MAKEINFO=true
 
+fi
+
 # 3. Lay out the two packages as build/jam/BuildFeatures expects them and
 #    create them with the host "package" tool. The .PackageInfo files follow
 #    the gcc_syslibs recipe of HaikuPorts.
 version="$("$PREFIX/bin/$TARGET-gcc" -dumpversion)"
 installed="$STAGE/install/boot/system"
+targetLib="$installed/$TARGET/lib"
+gccLib="$installed/lib/gcc/$TARGET/$version"
+kernelLibs="$ROOT/build/kernel-libs"
 base="$STAGE/gcc_syslibs"
 devel="$STAGE/gcc_syslibs_devel"
-softFloat="$PREFIX/lib/gcc/$TARGET/$version/soft-float"
-mkdir -p "$base/lib" "$devel/develop/lib" "$devel/develop/headers"
+rm -rf "$base" "$devel" "$STAGE"/*.hpkg
+mkdir -p "$base/lib" "$devel/develop/lib" "$devel/develop/headers/gcc"
 
-cp -a "$installed"/lib/libgcc_s.so* "$installed"/lib/libstdc++.so* \
-	"$installed"/lib/libsupc++.so* "$base/lib/" 2>/dev/null || true
-cp "$installed"/lib/libstdc++.a "$installed"/lib/libsupc++.a \
-	"$installed/lib/gcc/$TARGET/$version/libgcc.a" \
-	"$installed/lib/gcc/$TARGET/$version/libgcc_eh.a" "$devel/develop/lib/"
+# libsupc++.so is not a product of the GCC build. As in the HaikuPorts
+# recipe, it is linked from the objects of the static library.
+$TARGET-gcc -shared -nodefaultlibs -Wl,-soname,libsupc++.so \
+	-o "$base/lib/libsupc++.so" -Wl,--whole-archive \
+	"$ROOT/build/gcc-shared/$TARGET/libstdc++-v3/libsupc++/.libs/libsupc++convenience.a" \
+	-Wl,--no-whole-archive -L"$targetLib" -lgcc_s -lroot
+
+cp -a "$targetLib"/libgcc_s.so.1 "$targetLib"/libstdc++.so* "$base/lib/"
+rm -f "$base"/lib/*-gdb.py
+ln -s libgcc_s.so.1 "$base/lib/libgcc_s.so"
+$TARGET-strip --strip-debug "$base/lib/libgcc_s.so.1" \
+	"$base/lib/libsupc++.so" "$base"/lib/libstdc++.so.6.*
+
+cp "$targetLib/libstdc++.a" "$targetLib/libsupc++.a" "$gccLib/libgcc.a" \
+	"$gccLib/libgcc_eh.a" "$devel/develop/lib/"
 for variant in kernel boot; do
-	cp "$softFloat/libgcc.a" "$devel/develop/lib/libgcc-$variant.a"
-	cp "$softFloat/libsupc++.a" "$devel/develop/lib/libsupc++-$variant.a" \
-		2>/dev/null || cp "$PREFIX/$TARGET/lib/soft-float/libsupc++.a" \
-			"$devel/develop/lib/libsupc++-$variant.a"
+	for library in libgcc libgcc_eh libsupc++; do
+		cp "$kernelLibs/$library-kernel.a" \
+			"$devel/develop/lib/$library-$variant.a"
+	done
 done
-cp "$softFloat/libgcc_eh.a" "$devel/develop/lib/libgcc_eh-boot.a"
-cp -r "$installed/include/c++/$version" "$devel/develop/headers/c++"
-mkdir -p "$devel/develop/headers/gcc"
-cp -r "$PREFIX/lib/gcc/$TARGET/$version/include" \
-	"$devel/develop/headers/gcc/include"
+cp -r "$installed/$TARGET/include/c++/$version" "$devel/develop/headers/c++"
+cp -r "$gccLib/include" "$devel/develop/headers/gcc/include"
 
 package_info() {
 	# package_info DIRECTORY NAME SUMMARY
@@ -108,7 +134,9 @@ INFO
 package_info "$base" gcc_syslibs "GCC runtime libraries"
 package_info "$devel" gcc_syslibs_devel "GCC runtime libraries, development files"
 
-packageTool="$(find "$OUTPUT/objects" -type f -name package -path '*tools*' | head -1)"
+tools="$OUTPUT/objects/linux/x86_64/release/tools"
+packageTool="$tools/package/package"
+export LD_LIBRARY_PATH="$(dirname "$(find "$OUTPUT/objects/linux" -name libroot_build.so | head -1)")${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
 for name in gcc_syslibs gcc_syslibs_devel; do
 	(cd "$STAGE/$name" && "$packageTool" create -q \
 		"$STAGE/$name-${version}_indy-1-mips.hpkg")

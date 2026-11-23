@@ -54,7 +54,7 @@ Rules:
 | M2 loader | `haiku_loader: archive mounted` | Done 2026-11-18 on iris. The serial gate shows `haiku_loader: start`, the Count rate (33.0 MHz), `RAM: 64 MB`, `haiku_loader: archive mounted`, `haiku_loader: kseg2 ok`, then the kernel's first line. |
 | M3 kernel core | `haiku: m3 threads ok` | Gate passes on iris 2026-11-18: `./indy/gate.sh generated.mips/haiku-indy-netboot "haiku: m3 threads ok"`. User mode, FPU and signal code have not run. |
 | M4 modules, interrupts, storage | `haiku: m4 boot volume mounted` | M4.1 to M4.4 work on iris 2026-11-18: add-ons load, `wd33c93: controller ready`, the disk is published as `disk/scsi/0/1/0/raw`, and with a BFS image the log shows `bfs: mounted "Haiku"` and `Mounted boot partition`. The boot then stops at `error starting "/boot/system/servers/launch_daemon"`, because the volume is empty. M4.5 (interrupts, DMA) not written. |
-| M5 userland | `haiku: m5 userland` | Arch files written (M5.1 to M5.3). M5.4 to M5.6 not started. |
+| M5 userland | `haiku: m5 userland` | Arch files written (M5.1 to M5.3). M5.4 done 2026-11-24 (section 1.3). M5.5 and M5.6 not started. |
 | M6 desktop | `haiku: m6 desktop` plus screenshot | M6.1 done on iris 2026-11-18 (`make -C indy gate-rex3`, both gradients drawn). Driver, accelerant, app_server hook, isa and ps2 changes written, not run. |
 | M7 network | `haiku: m7 ping ok` | The Seeq driver works on iris 2026-11-18: the kernel configures the interface and mounts its boot volume from a RemoteDisk server (D10a). DHCP and ping from userland not run. |
 | M8 physical Indy | same markers on the machine's serial port | Not started |
@@ -190,6 +190,48 @@ Bugs these runs found and fixed:
 
 Not tested: a real GDB, the network console on the physical Indy (hardware
 unverified), breakpoints in user teams.
+
+### 1.3 M5.4 shared GCC libraries, 2026-11-24
+
+`indy/toolchain/syslibs.sh /mnt/europa/haiku/generated.mips` (inside
+`nix develop`) builds a second GCC tree with `--enable-shared` in
+`/mnt/europa/haiku-toolchain/build/gcc-shared` and writes two packages to
+`/mnt/europa/haiku-toolchain/build/syslibs`. `syslibs.sh OUTPUT package`
+repeats the packaging only. The log is `build/syslibs.log`.
+
+`package list` output, libraries only:
+
+```
+gcc_syslibs-17.0.0_indy-1-mips.hpkg (5.0 MB)
+  lib/libgcc_s.so.1, libgcc_s.so, libstdc++.so.6.0.37, libstdc++.so.6,
+  libstdc++.so, libsupc++.so
+gcc_syslibs_devel-17.0.0_indy-1-mips.hpkg (25.9 MB)
+  develop/lib/libgcc.a, libgcc_eh.a, libstdc++.a, libsupc++.a,
+  libgcc-kernel.a, libgcc_eh-kernel.a, libsupc++-kernel.a,
+  libgcc-boot.a, libgcc_eh-boot.a, libsupc++-boot.a
+  develop/headers/c++, develop/headers/gcc/include
+```
+
+How it differs from the card:
+
+- The stub libroot is compiled by the script from
+  `src/system/libroot/stubbed/libroot_stubs.c`. Its jam target needs a build
+  configured with `--bootstrap`. The start files (`crti.o`, `crtn.o`,
+  `start_dyn.o`, `init_term_dyn.o`) come from jam in `generated.mips`: this
+  was the first compile of the mips glue with the real toolchain.
+- The sysroot `cross-tools-mips/sysroot/boot/system/develop/lib` now holds
+  the stub `libroot.so` and the start files, so the installed cross compiler
+  can link shared objects against them.
+- `libsupc++.so` is linked by the script from `libsupc++convenience.a`. The
+  GCC build does not produce it.
+- The kernel and boot variants are the libraries of `build.sh kernel-libs`.
+  `libgcc_eh-kernel.a` and `libgcc_eh-boot.a` are empty archives.
+- The shared libraries are stripped of debug information.
+
+Not done: the packages are not in a repository and jam still uses the seed
+directory. No program has been linked against these libraries or run with
+them. `jam -q libroot.so` (M5.2) and `jam -q runtime_loader` (M5.3) have not
+been run with the real toolchain.
 
 ## 2. Workspace and environment
 
