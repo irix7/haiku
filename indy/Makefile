@@ -4,6 +4,7 @@
 #   make gate-m0      serial gate with the M0 image
 #   make gate-gfx-m0  graphics gate with the M0 image
 #   make gate-rex3    graphics gate with the REX3 upload test
+#   make gate-gdb     GDB stub of the kernel, through the serial port and UDP
 #   make netboot IMAGE=FILE   copy an image to the TFTP root of the real Indy
 
 OUT = ../generated.mips
@@ -22,8 +23,12 @@ gate-gfx-m0: m0
 gate-rex3: m0
 	./gate-gfx.sh $(M0)/rex3.ecoff "haiku: m0 rex3 done" $(OUT)/m0-rex3.png 120
 
+gate-gdb:
+	./gate-gdb.sh serial
+	./gate-gdb.sh udp
+
 netboot:
 	test -n "$(IMAGE)"
 	cp $(IMAGE) $(NETBOOT_DIR)/haiku
 
-.PHONY: m0 gate-m0 gate-gfx-m0 gate-rex3 netboot
+.PHONY: m0 gate-m0 gate-gfx-m0 gate-rex3 gate-gdb netboot

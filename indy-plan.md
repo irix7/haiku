@@ -141,12 +141,55 @@ Known noise and open points from these runs:
   soft-float code. The add-ons load and run.
 - libstdc++'s C++23 module `std.cc` does not compile ("not declared in std" for
   24 `long double` functions). The library builds and installs without it.
-- A stack crawl in the kernel debugger ends with a read fault at 0xfffffff4.
 
 Design points that were fixed while writing the code, and that the decisions
 of section 4 now include: the page table entry format (D9), the `mips` macro
 (section 9), the REX3 state reset (3.8), the data cache write-back on
 executable mappings (section 9).
+
+### 1.2 Kernel debugger and GDB stub, 2026-11-24
+
+Not a milestone of section 8. The kernel has a GDB stub
+(`src/system/kernel/debug/gdb.cpp`, generic, with mips hooks in
+`arch_debug.cpp`) on two channels: serial port 1, and UDP port 2159 on the
+Seeq controller (`arch_debug_net.cpp`, polled inside the kernel debugger; the
+seeq8003 driver hands it the datagrams while the kernel runs).
+
+- Enter from the serial port: Control-C stops the kernel at the KDL prompt,
+  then GDB's first packet starts the stub. Enter from the network: the first
+  datagram to port 2159 stops the kernel.
+- GDB: `target remote udp:ADDRESS:2159`, or the serial line. No MIPS GDB is
+  installed on this host. The gate uses `indy/gdb-check.py`, a client for the
+  remote protocol.
+- Supported: `?`, `g`, `G`, `p`, `P`, `m`, `M`, `Z0`, `z0`, `c`, `s` (through
+  temporary breakpoints at the next pc and the branch target), thread list,
+  `Hg`, `D`, `k`.
+
+Checked on iris 2026-11-24, inside `nix develop`:
+
+```
+./indy/gate-gdb.sh serial     # gdb-check: PASS, gate: PASS
+./indy/gate-gdb.sh udp        # gdb-check: PASS, gate: PASS
+DISK=generated.mips/disk.raw BOOT_ARGS=disk ./indy/gate.sh \
+  generated.mips/haiku-indy-netboot "Mounted boot partition"   # gate: PASS
+```
+
+Bugs these runs found and fixed:
+
+- `arch_debug_call_with_fault_handler()` ended with `longjmp(jumpBuffer, 1)`
+  after a function that returned normally. Every KDL command was reported as
+  faulted, `debug_memcpy()` always took its slow path, and a command's
+  `B_KDEBUG_QUIT` was lost. It returns now.
+- The fault handler of the kernel debugger kept its jump buffer in one static
+  pointer, which a nested call left pointing at a dead frame. The buffer is
+  now found through `cpu_ent::fault_handler_stack_pointer`
+  (`mips_debug_fault_link`), which the generic code restores. Address errors
+  and bus errors inside the debugger use the same handler.
+- The KDL prompt consumed the `$` of GDB's first packet, and the stub waited
+  for the next one. The prompt now runs `gdb packet`.
+
+Not tested: a real GDB, the network console on the physical Indy (hardware
+unverified), breakpoints in user teams.
 
 ## 2. Workspace and environment
 
@@ -1194,6 +1237,15 @@ mon "ps2 type boot -f bootp()haiku"; mon "ps2 enter"
 iris-ci ... serial-wait "$MARKER" --timeout $TIMEOUT
 iris-ci ... screenshot $SCREENSHOT
 ```
+
+GDB gate (`indy/gate-gdb.sh serial|udp`, or `make -C indy gate-gdb` for both).
+It starts `remote_disk_server` with `generated.mips/disk.raw`, runs the serial
+gate up to `Mounted boot partition`, then runs `indy/gdb-check.py` against the
+stub. The serial mode uses `serial_socket_b` of iris, the UDP mode a
+`[[port_forward]]` from host port 21590 to guest port 2159. The serial gate
+takes such additions through `CONFIG_TOP`, `CONFIG_END` and `THEN`. iris drops
+serial output that a socket client reads too slowly: a client must keep
+reading while the kernel runs.
 
 The default monitor ports are 18931 (serial gate) and 18932 (graphics gate).
 A gate fails at once with "monitor cannot bind" in `iris.out` when another

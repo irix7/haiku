@@ -20,6 +20,13 @@
 #   BOOT_ARGS       words added to the PROM boot command, for example "disk"
 #                   to boot from the SCSI disk and not from a remote disk
 #   IRIS_ARGS       extra emulator options, for example "--cpu r5000"
+#   CONFIG_TOP      lines for the top of the iris config, for example
+#                   'serial_socket_b = "/path/to/socket"'
+#   CONFIG_END      text for the end of the iris config, for example a
+#                   [[port_forward]] table
+#   THEN            command to run after the marker, with iris still running.
+#                   The gate fails if it fails. It sees WORK in its
+#                   environment.
 set -euo pipefail
 
 IMAGE="${1:?usage: gate.sh IMAGE MARKER [TIMEOUT_SECONDS]}"
@@ -52,6 +59,7 @@ banks = [$RAM, 0, 0, 0]
 no_audio = true
 headless = true
 nvram = "$WORK/nvram.bin"
+${CONFIG_TOP:-}
 
 [machine]
 profile = "indy_ip24"
@@ -64,6 +72,9 @@ tftp_dir = "$WORK/tftp"
 TOML
 	if [ -n "$DISK" ]; then
 		printf '\n[scsi.1]\npath = "%s"\n' "$(realpath "$DISK")"
+	fi
+	if [ -n "${CONFIG_END:-}" ]; then
+		printf '\n%s\n' "$CONFIG_END"
 	fi
 } >"$WORK/machine.toml"
 
@@ -80,7 +91,7 @@ cleanup() {
 	kill "$IRIS_PID" 2>/dev/null || true
 	wait "$IRIS_PID" 2>/dev/null || true
 	if [ "$status" -ne 0 ]; then
-		echo "gate: FAIL  marker \"$MARKER\" not seen; logs in $WORK" >&2
+		echo "gate: FAIL  $STAGE; logs in $WORK" >&2
 		echo "--- iris output (tail)" >&2
 		tail -20 "$WORK/iris.out" >&2 || true
 		echo "--- serial log (tail)" >&2
@@ -92,6 +103,7 @@ trap cleanup EXIT
 
 ic() { "$IRIS_CI" --socket "$WORK/i.sock" -q "$@"; }
 
+STAGE="marker \"$MARKER\" not seen"
 ic status --wait-ready 30
 ic start
 # Headless, the PROM puts its maintenance menu on the serial console.
@@ -101,5 +113,10 @@ ic serial-wait '>>' --timeout 30
 ic serial-send "boot -f bootp()haiku${BOOT_ARGS:+ $BOOT_ARGS}"
 ic serial-wait 'entry: 0x' --timeout 60
 ic serial-wait "$MARKER" --timeout "$TIMEOUT"
+
+if [ -n "${THEN:-}" ]; then
+	STAGE="the command of THEN failed"
+	WORK="$WORK" bash -c "$THEN"
+fi
 
 echo "gate: PASS  marker \"$MARKER\" seen; logs in $WORK"

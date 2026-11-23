@@ -4,6 +4,7 @@
  */
 
 
+#include <stdio.h>
 #include <string.h>
 
 #include <algorithm>
@@ -16,6 +17,7 @@
 #include <arch_thread_types.h>
 #include <boot/kernel_args.h>
 #include <cpu.h>
+#include <debug.h>
 #include <interrupts.h>
 #include <kscheduler.h>
 #include <ksignal.h>
@@ -121,6 +123,40 @@ dump_frame(const iframe* frame)
 }
 
 
+/*!	Panics for an exception in kernel mode. An attached GDB is told
+	\a signal and gets the registers of the frame.
+*/
+static void
+kernel_exception_panic(iframe* frame, int32 signal, const char* message)
+{
+	dump_frame(frame);
+
+	iframe* previous = mips_debug_set_frame(frame);
+	debug_gdb_set_stop_signal(signal);
+	panic("%s", message);
+	mips_debug_set_frame(previous);
+}
+
+
+//!	Returns the number GDB's remote protocol has for a signal.
+static int32
+gdb_signal(uint32 signalNumber)
+{
+	switch (signalNumber) {
+		case SIGILL:
+			return GDB_SIGNAL_ILL;
+		case SIGFPE:
+			return GDB_SIGNAL_FPE;
+		case SIGBUS:
+			return GDB_SIGNAL_BUS;
+		case SIGSEGV:
+			return GDB_SIGNAL_SEGV;
+		default:
+			return GDB_SIGNAL_ABRT;
+	}
+}
+
+
 /*!	Sends a signal for an exception in user mode. Panics for an exception in
 	kernel mode.
 */
@@ -129,8 +165,8 @@ send_signal(iframe* frame, debug_exception_type type, uint32 signalNumber,
 	int32 signalCode, addr_t signalAddress = 0, int32 signalError = B_ERROR)
 {
 	if (!is_user_frame(frame)) {
-		dump_frame(frame);
-		panic("unexpected exception in kernel mode");
+		kernel_exception_panic(frame, gdb_signal(signalNumber),
+			"unexpected exception in kernel mode");
 		return;
 	}
 
@@ -262,6 +298,8 @@ handle_interrupt(iframe* frame)
 		sSpuriousInterrupts[2]++;
 	}
 
+	mips_debug_check_break(frame);
+
 	after_interrupt();
 }
 
@@ -290,6 +328,34 @@ handle_tlb_fixup(addr_t address, bool isWrite)
 }
 
 
+/*!	Continues at the fault handler of the kernel debugger, if one is set
+	(arch_debug_call_with_fault_handler()). Returns false otherwise.
+*/
+static bool
+call_debugger_fault_handler(iframe* frame, addr_t address, bool isWrite)
+{
+	if (!debug_debugger_running() || thread_get_current_thread() == NULL)
+		return false;
+
+	cpu_ent* cpu = &gCPU[smp_get_current_cpu()];
+	if (cpu->fault_handler == 0)
+		return false;
+
+	mips_debug_fault_link* link
+		= (mips_debug_fault_link*)cpu->fault_handler_stack_pointer;
+
+	debug_set_page_fault_info(address, (addr_t)frame->epc,
+		isWrite ? DEBUG_PAGE_FAULT_WRITE : 0);
+	frame->epc = mips_sign_extend(cpu->fault_handler);
+	frame->r[MIPS_REG_T9] = frame->epc;
+	frame->r[MIPS_REG_A0] = mips_sign_extend((addr_t)link->jump_buffer);
+	// The handler needs only enough stack to call longjmp().
+	frame->r[MIPS_REG_SP]
+		= mips_sign_extend(ROUNDDOWN((addr_t)link, 16) - 256);
+	return true;
+}
+
+
 static void
 handle_page_fault(iframe* frame, addr_t address, bool isWrite)
 {
@@ -299,16 +365,8 @@ handle_page_fault(iframe* frame, addr_t address, bool isWrite)
 	if (debug_debugger_running()) {
 		Thread* thread = thread_get_current_thread();
 		if (thread != NULL) {
-			cpu_ent* cpu = &gCPU[smp_get_current_cpu()];
-			if (cpu->fault_handler != 0) {
-				debug_set_page_fault_info(address, pc,
-					isWrite ? DEBUG_PAGE_FAULT_WRITE : 0);
-				frame->epc = mips_sign_extend(cpu->fault_handler);
-				frame->r[MIPS_REG_T9] = frame->epc;
-				frame->r[MIPS_REG_SP]
-					= mips_sign_extend(cpu->fault_handler_stack_pointer);
+			if (call_debugger_fault_handler(frame, address, isWrite))
 				return;
-			}
 
 			if (thread->fault_handler != 0) {
 				kprintf("ERROR: thread::fault_handler used in kernel "
@@ -692,6 +750,10 @@ mips_handle_exception(iframe* frame)
 				&& emulate_unaligned_access(frame, address)) {
 				return;
 			}
+			if (!isUser && call_debugger_fault_handler(frame, address,
+					code == MIPS_EXCEPTION_ADDRESS_STORE)) {
+				return;
+			}
 			if (!isUser && thread != NULL && thread->fault_handler != NULL) {
 				// A bad user pointer that the kernel dereferenced.
 				frame->epc = mips_sign_extend((addr_t)thread->fault_handler);
@@ -710,6 +772,9 @@ mips_handle_exception(iframe* frame)
 
 		case MIPS_EXCEPTION_BUS_INSTRUCTION:
 		case MIPS_EXCEPTION_BUS_DATA:
+			// The address of a bus error is not known.
+			if (!isUser && call_debugger_fault_handler(frame, 0, false))
+				return;
 			if (!isUser && thread != NULL && thread->fault_handler != NULL) {
 				// A probe of a device that is not there
 				// (arch_cpu_probe_read32()).
@@ -732,9 +797,17 @@ mips_handle_exception(iframe* frame)
 				enable_interrupts();
 				user_debug_breakpoint_hit(true);
 			} else {
-				dump_frame(frame);
-				panic("kernel breakpoint");
-				frame->epc += 4;
+				// An attached GDB gets the breakpoint. It moves the pc
+				// itself when it resumes the kernel.
+				uint64 pc = frame->epc;
+				iframe* previous = mips_debug_set_frame(frame);
+				if (!debug_gdb_trap(GDB_SIGNAL_TRAP)) {
+					dump_frame(frame);
+					panic("kernel breakpoint");
+					if (frame->epc == pc)
+						frame->epc += 4;
+				}
+				mips_debug_set_frame(previous);
 			}
 			return;
 
@@ -794,8 +867,10 @@ mips_handle_exception(iframe* frame)
 		return;
 	}
 
-	dump_frame(frame);
-	panic("unhandled exception %" B_PRIu32 " in kernel mode", code);
+	char message[64];
+	snprintf(message, sizeof(message), "unhandled exception %" B_PRIu32
+		" in kernel mode", code);
+	kernel_exception_panic(frame, GDB_SIGNAL_ABRT, message);
 }
 
 

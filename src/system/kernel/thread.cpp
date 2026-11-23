@@ -2647,6 +2647,20 @@ thread_map(void (*function)(Thread* thread, void* data), void* data)
 }
 
 
+/*!	Calls \a function for every thread until it returns \c true. Does not
+	lock the thread table: for the kernel debugger only.
+*/
+void
+thread_debug_map(bool (*function)(Thread* thread, void* data), void* data)
+{
+	for (ThreadHashTable::Iterator it = sThreadHash.GetIterator();
+		Thread* thread = it.Next();) {
+		if (function(thread, data))
+			break;
+	}
+}
+
+
 /*!	Kernel private thread creation function.
 */
 thread_id

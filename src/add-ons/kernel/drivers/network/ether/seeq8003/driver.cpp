@@ -21,14 +21,14 @@
 #include <OS.h>
 
 #include <arch/cpu.h>
+#include <arch/debug.h>
 #include <arch_indy.h>
 #include <ether_driver.h>
 #include <kernel.h>
 #include <lock.h>
 #include <net/if_media.h>
+#include <seeq8003.h>
 #include <util/AutoLock.h>
-
-#include "seeq8003.h"
 
 
 #define DEVICE_NAME	"seeq8003"
@@ -57,6 +57,11 @@ struct seeq_device {
 	uint8*				txBuffer;
 	uint32				rxIndex;
 
+	// The frames from rxIndex up to scanIndex have been shown to the debug
+	// console of the kernel. rxState tells which of them it took.
+	uint32				scanIndex;
+	uint8				rxState[SEEQ_RX_RING_SIZE];
+
 	sem_id				rxSem;
 	mutex				txLock;
 	mutex				rxLock;
@@ -68,6 +73,13 @@ int32 api_version = B_CUR_DRIVER_API_VERSION;
 static const char* sDeviceNames[] = { "net/" DEVICE_NAME "/0", NULL };
 static seeq_device sDevice;
 static mutex sOpenLock;
+
+// values of seeq_device::rxState
+enum {
+	RX_NEW = 0,		// not shown to the debug console yet
+	RX_SCANNED,
+	RX_DEBUG		// a frame for the debug console: read() drops it
+};
 
 static const size_t kDmaSize = ROUNDUP(
 	(SEEQ_RX_RING_SIZE + 1) * sizeof(hpc3_descriptor)
@@ -147,14 +159,68 @@ start_receiver(seeq_device& device)
 		descriptor.control = SEEQ_RX_ARMED;
 		descriptor.next = physical_of(device,
 			&device.rxDescriptors[(i + 1) % SEEQ_RX_RING_SIZE]);
+		device.rxState[i] = RX_NEW;
 	}
 	device.rxIndex = 0;
+	device.scanIndex = 0;
 
 	uint32 first = physical_of(device, &device.rxDescriptors[0]);
 	indy_write32(INDY_HPC3_ENET_RX_CBP, first);
 	indy_write32(INDY_HPC3_ENET_RX_NDBP, first);
 	indy_write32(INDY_HPC3_ENET_RX_CTRL, 0);
 	indy_write32(INDY_HPC3_ENET_RX_CTRL, HPC3_ENET_CTRL_ACTIVE);
+}
+
+
+/*!	Returns the frame of a descriptor the HPC3 has filled. Returns false for
+	a frame that was received with an error.
+*/
+static bool
+get_frame(seeq_device& device, uint32 index, const uint8*& _frame,
+	size_t& _length)
+{
+	// The count field holds the bytes that were left over.
+	uint32 remaining = device.rxDescriptors[index].control
+		& HPC3_DESC_COUNT_MASK;
+	uint32 total = remaining < SEEQ_RX_MAX_COUNT
+		? SEEQ_RX_MAX_COUNT - remaining : 0;
+	if (total < SEEQ_RX_OVERHEAD)
+		return false;
+
+	const uint8* data = device.rxBuffers + index * SEEQ_RX_BUFFER_SIZE;
+	size_t length = total - SEEQ_RX_OVERHEAD;
+	if (length < 14 || length > SEEQ_MAX_FRAME_SIZE
+		|| (data[2 + length] & SEEQ_RX_STATUS_GOOD) == 0) {
+		return false;
+	}
+
+	_frame = data + 2;
+	_length = length;
+	return true;
+}
+
+
+/*!	Shows the frames that have arrived to the debug console of the kernel,
+	which takes the datagrams for its port: a remote GDB or terminal stops
+	the kernel with one. Interrupts must be off.
+*/
+static void
+scan_received_frames(seeq_device& device)
+{
+	for (uint32 i = 0; i < SEEQ_RX_RING_SIZE; i++) {
+		uint32 index = device.scanIndex;
+		if ((device.rxDescriptors[index].control & HPC3_DESC_OWN) != 0
+			|| device.rxState[index] != RX_NEW) {
+			break;
+		}
+
+		const uint8* frame;
+		size_t length;
+		bool taken = get_frame(device, index, frame, length)
+			&& mips_debug_net_input(frame, length);
+		device.rxState[index] = taken ? RX_DEBUG : RX_SCANNED;
+		device.scanIndex = (index + 1) % SEEQ_RX_RING_SIZE;
+	}
 }
 
 
@@ -172,6 +238,8 @@ seeq_interrupt(void* data)
 	indy_write32(INDY_HPC3_ENET_RESET, HPC3_ENET_RESET_CLRINT);
 	indy_write32(INDY_HPC3_INTSTAT,
 		indy_read32(INDY_HPC3_INTSTAT) & HPC3_INTSTAT_ENET_DMA);
+
+	scan_received_frames(*device);
 
 	release_sem_etc(device->rxSem, 1, B_DO_NOT_RESCHEDULE);
 	return B_INVOKE_SCHEDULER;
@@ -312,31 +380,30 @@ seeq_read(void* cookie, off_t position, void* buffer, size_t* _length)
 			continue;
 		}
 
-		// The count field holds the bytes that were left over.
-		uint32 remaining = control & HPC3_DESC_COUNT_MASK;
-		uint32 total = remaining < SEEQ_RX_MAX_COUNT
-			? SEEQ_RX_MAX_COUNT - remaining : 0;
-		const uint8* data = device->rxBuffers
-			+ device->rxIndex * SEEQ_RX_BUFFER_SIZE;
+		// The interrupt handler may not have seen this frame yet.
+		InterruptsLocker interruptsLocker;
+		scan_received_frames(*device);
+		bool forDebugConsole = device->rxState[device->rxIndex] == RX_DEBUG;
+		interruptsLocker.Unlock();
 
-		bool good = false;
+		const uint8* frame = NULL;
 		size_t length = 0;
-		if (total >= SEEQ_RX_OVERHEAD) {
-			length = total - SEEQ_RX_OVERHEAD;
-			good = length >= 14 && length <= SEEQ_MAX_FRAME_SIZE
-				&& (data[2 + length] & SEEQ_RX_STATUS_GOOD) != 0;
-		}
+		bool good = !forDebugConsole
+			&& get_frame(*device, device->rxIndex, frame, length);
 
 		status_t status = B_OK;
 		if (good) {
 			if (length > *_length)
 				length = *_length;
-			status = user_memcpy(buffer, data + 2, length);
+			status = user_memcpy(buffer, frame, length);
 		}
 
 		// hand the descriptor back to the HPC3
+		interruptsLocker.Lock();
+		device->rxState[device->rxIndex] = RX_NEW;
 		descriptor.control = SEEQ_RX_ARMED;
 		device->rxIndex = (device->rxIndex + 1) % SEEQ_RX_RING_SIZE;
+		interruptsLocker.Unlock();
 
 		if (!good)
 			continue;

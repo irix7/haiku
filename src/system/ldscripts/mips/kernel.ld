@@ -52,8 +52,10 @@ SECTIONS
   .eh_frame       : ONLY_IF_RO { KEEP (*(.eh_frame)) *(.eh_frame.*) }
   .gcc_except_table   : ONLY_IF_RO { *(.gcc_except_table .gcc_except_table.*) }
 
-  /* The data segment starts on its own page (16 kB). */
-  . = ALIGN(0x4000);
+  /* The data segment starts on a page of its own. The linker puts text and
+     data into one segment if they share a page of its maximum page size
+     (64 kB), and the boot loader needs two segments. */
+  . = ALIGN(CONSTANT (MAXPAGESIZE));
 
   .eh_frame       : ONLY_IF_RW { KEEP (*(.eh_frame)) *(.eh_frame.*) }
   .gcc_except_table   : ONLY_IF_RW { *(.gcc_except_table .gcc_except_table.*) }

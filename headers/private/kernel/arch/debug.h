@@ -49,7 +49,34 @@ bool arch_is_debug_variable_defined(const char* variableName);
 status_t arch_set_debug_variable(const char* variableName, uint64 value);
 status_t arch_get_debug_variable(const char* variableName, uint64* value);
 
+// Hooks of the GDB stub (debug/gdb.cpp). Only the first one is mandatory:
+// the stub has weak defaults for the others.
 ssize_t arch_debug_gdb_get_registers(char* buffer, size_t bufferSize);
+	// all registers as hex digits, in the order of GDB's "g" packet
+status_t arch_debug_gdb_set_registers(const char* buffer, size_t length);
+ssize_t arch_debug_gdb_get_register(int32 index, char* buffer,
+		size_t bufferSize);
+status_t arch_debug_gdb_set_register(int32 index, const char* buffer,
+		size_t length);
+void arch_debug_gdb_set_entry_context(jmp_buf context);
+	// the registers to report if no exception entered the debugger
+ssize_t arch_debug_gdb_get_breakpoint_instruction(addr_t address, int32 kind,
+		void* buffer, size_t bufferSize);
+void arch_debug_gdb_flush_code(addr_t address, size_t size);
+	// called after the stub has written to memory
+status_t arch_debug_gdb_resume(bool hasAddress, addr_t address);
+	// called before the kernel resumes, with the new pc if GDB gave one
+ssize_t arch_debug_gdb_get_step_targets(addr_t* targets, int32 maxCount);
+	// the addresses the CPU can be at after the next instruction
+char arch_debug_gdb_getchar(void);
+void arch_debug_gdb_putchar(char c);
+void arch_debug_gdb_flush(void);
+	// the channel to GDB, by default the serial debug port
+bool arch_debug_gdb_uses_serial_port(void);
+
+// Called when the kernel debugger has been entered and before it is left.
+void arch_debug_enter_debugger(void);
+void arch_debug_exit_debugger(void);
 
 void arch_debug_snooze(bigtime_t duration);
 
