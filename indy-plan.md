@@ -54,7 +54,7 @@ Rules:
 | M2 loader | `haiku_loader: archive mounted` | Done 2026-11-18 on iris. The serial gate shows `haiku_loader: start`, the Count rate (33.0 MHz), `RAM: 64 MB`, `haiku_loader: archive mounted`, `haiku_loader: kseg2 ok`, then the kernel's first line. |
 | M3 kernel core | `haiku: m3 threads ok` | Gate passes on iris 2026-11-18: `./indy/gate.sh generated.mips/haiku-indy-netboot "haiku: m3 threads ok"`. User mode, FPU and signal code have not run. |
 | M4 modules, interrupts, storage | `haiku: m4 boot volume mounted` | M4.1 to M4.4 work on iris 2026-11-18: add-ons load, `wd33c93: controller ready`, the disk is published as `disk/scsi/0/1/0/raw`, and with a BFS image the log shows `bfs: mounted "Haiku"` and `Mounted boot partition`. The boot then stops at `error starting "/boot/system/servers/launch_daemon"`, because the volume is empty. M4.5 (interrupts, DMA) not written. |
-| M5 userland | `haiku: m5 userland` | Arch files written (M5.1 to M5.3). M5.4 done 2026-11-24 (section 1.3). M5.5 and M5.6 not started. |
+| M5 userland | `haiku: m5 userland` | Arch files written (M5.1 to M5.3). `libroot.so` and `runtime_loader` link (section 1.4). M5.4 done 2026-11-24 (section 1.3). M5.5 and M5.6 not started. |
 | M6 desktop | `haiku: m6 desktop` plus screenshot | M6.1 done on iris 2026-11-18 (`make -C indy gate-rex3`, both gradients drawn). Driver, accelerant, app_server hook, isa and ps2 changes written, not run. |
 | M7 network | `haiku: m7 ping ok` | The Seeq driver works on iris 2026-11-18: the kernel configures the interface and mounts its boot volume from a RemoteDisk server (D10a). DHCP and ping from userland not run. |
 | M8 physical Indy | same markers on the machine's serial port | Not started |
@@ -230,8 +230,32 @@ How it differs from the card:
 
 Not done: the packages are not in a repository and jam still uses the seed
 directory. No program has been linked against these libraries or run with
-them. `jam -q libroot.so` (M5.2) and `jam -q runtime_loader` (M5.3) have not
-been run with the real toolchain.
+them.
+
+### 1.4 M5.2 and M5.3 link checks, 2026-11-24
+
+`./indy/jam.sh libroot.so` and `./indy/jam.sh runtime_loader` both end with
+`jam.sh: exit 0` with the real toolchain.
+
+- `libroot.so`: 3.1 MB, flags `abi2, mips3`. Its only undefined symbol is the
+  weak `__cxa_pure_virtual`. Dynamic relocations: 1739 `R_MIPS_REL32` and one
+  `R_MIPS_TLS_DTPMOD`.
+- `runtime_loader`: 265 kB, no undefined symbols, 211 `R_MIPS_REL32`, two
+  load segments.
+
+What the first build of libroot changed:
+
+- `musl/internal/libm.h` declares `exp10()`, `sincos()` and `__fpclassify()`.
+  Haiku's `math.h` does not, and GCC 14 and later reject the implicit
+  declarations in `exp10l.c`, `sincosl.c` and `__fpclassifyl.c`. These files
+  call the double functions where long double is double (D1).
+- `glibc/stdlib/longlong.h`: the mips `umul_ppmm` used the asm constraint
+  `h`, which GCC 4.4 removed. It is a 64-bit multiplication in C now.
+- `musl/math/mips/Jamfile` lists `__fpclassify.c`, `__fpclassifyf.c` and
+  `__fpclassifyl.c`, as the arm Jamfile does.
+
+Neither binary has run. The kernel has to apply the 211 relocations of
+`runtime_loader` when it loads it (M5.1, not exercised).
 
 ## 2. Workspace and environment
 
