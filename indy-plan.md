@@ -300,6 +300,40 @@ versions), `CACHE_LINE_SIZE` 32 for mips in
 headers in `gcc_syslibs_devel` (`syslibs.sh`), `OUTPUT` and `JAM_ARGS` in
 `indy/jam.sh`.
 
+CI (added 2026-11-24): `.github/workflows/bootstrap.yaml` of
+`irix7/haikuports.cross` builds mips only, from the irix7 forks. Jobs:
+`toolchain` (binutils, GCC, seed, syslibs, cached by the commits of both
+forks and the hash of `indy/toolchain`; then the stage 1 sysroot), `ports`
+(one job per port of the matrix, with `port.sh`), `boot` (netboot image, then
+`indy/gate.sh` in a released IRIS up to `Mounted boot partition`).
+
+- Packages are stored in the release `mips-packages` of that repository. A
+  job uploads a package as soon as it is built. A ports job whose package
+  (version of the newest recipe and its `REVISION`) is in the release does
+  nothing, so a run that was cancelled or timed out continues where it
+  stopped. A changed recipe needs a new `REVISION`; the `rebuild` input of a
+  manual run builds everything.
+- A port goes into the matrix when it builds locally.
+- Failures: `indy/ci-failures.sh [RUN_ID]` lists the failed jobs of a run and
+  prints each job's `errors.txt` (first errors and log end, written by
+  `indy/toolchain/port-errors.sh` for ports). The same script reads a local
+  log: `indy/toolchain/port-errors.sh /mnt/europa/haiku-toolchain/build/port-NAME.log`.
+- Runs start by manual dispatch (`gh workflow run bootstrap.yaml -R
+  irix7/haikuports.cross --ref indy-mips`). Pushes have not started a run so
+  far; Actions may need enabling on the fork's Actions tab.
+- `indy/jam.sh` runs jam directly inside the devshell and on hosts without
+  nix.
+
+Trap found 2026-11-24: the mips `LINK_SPEC` of the GCC fork lacked
+`%{shared:-e 0} %{!shared: %{!nostart: -no-undefined}}`. A Haiku program is a
+shared object to the linker, so programs with undefined symbols linked and
+every configure link test for a function passed (`mempcpy`, `eaccess`,
+`error`, `rawmemchr`). The first port batch failed on this. Fixed in
+`irix7/gcc` 97a9fa60f; packages built before the fix were deleted.
+
+haikuporter removes `cross-tools-mips/sysroot` after each port it builds.
+`syslibs.sh` stages headers and libraries there again when it runs.
+
 Open: the other 20 stage 1 ports (logs in
 `/mnt/europa/haiku-toolchain/build/port-NAME.log`). `gcc_bootstrap` (the
 compiler that runs on Haiku) is not built. `binutils_bootstrap` 2.41 has no
