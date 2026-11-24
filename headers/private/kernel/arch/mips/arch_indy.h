@@ -185,6 +185,22 @@ indy_write32(uint32 physicalAddress, uint32 value)
 	*(volatile uint32*)MIPS_KSEG1(physicalAddress) = value;
 }
 
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+struct kernel_args;
+
+/* text console on the Newport, arch_newport_console.cpp */
+void mips_newport_console_init(struct kernel_args* args);
+void mips_newport_console_putchar(char c);
+void mips_newport_console_stop(void);
+
+#ifdef __cplusplus
+}
+#endif
+
 #endif	/* !_ASSEMBLER */
 
 

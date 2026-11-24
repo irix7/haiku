@@ -1,5 +1,7 @@
 SubDir HAIKU_TOP src system kernel arch mips ;
 
+UsePrivateHeaders [ FDirName graphics newport ] ;
+
 UsePrivateKernelHeaders ;
 
 SEARCH_SOURCE += [ FDirName $(SUBDIR) $(DOTDOT) generic ] ;
@@ -13,6 +15,7 @@ KernelMergeObject kernel_arch_mips.o :
 	arch_cpu.cpp
 	arch_debug.cpp
 	arch_debug_console.cpp
+	arch_newport_console.cpp
 	arch_debug_net.cpp
 	arch_elf.cpp
 	arch_int.cpp

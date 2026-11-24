@@ -62,12 +62,20 @@ extern "C" int32 arcs_call(uint32 function, uint32 a0, uint32 a1, uint32 a2,
 
 static bool sPromConsole = true;
 static bool sPromIsSerial = false;
+static bool sPromGraphics = false;
 static bool sSerialDead = false;
 
 
 /*!	Stops the output through the PROM. The loader calls this before it
 	replaces the exception vectors of the PROM.
 */
+bool
+console_prom_graphics(void)
+{
+	return sPromGraphics;
+}
+
+
 void
 console_leave_prom(void)
 {
@@ -283,6 +291,12 @@ console_init(void)
 		const char* value = (const char*)(addr_t)arcs_call(getEnvironment,
 			(uint32)(addr_t)kName, 0, 0, 0);
 		sPromIsSerial = value != NULL && (value[0] == 'd' || value[0] == 'D');
+
+		// The PROM sets "gfx=alive" when it found a working display.
+		static const char kGraphics[] = "gfx";
+		value = (const char*)(addr_t)arcs_call(getEnvironment,
+			(uint32)(addr_t)kGraphics, 0, 0, 0);
+		sPromGraphics = value != NULL && strcmp(value, "alive") == 0;
 	}
 
 	gConsoleNode = &sConsole;

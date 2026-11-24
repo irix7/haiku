@@ -274,8 +274,15 @@ mmu_init()
 	dprintf("RAM: %" B_PRIu64 " MB at %#x, loader image ends at %p\n",
 		(uint64)(sRamEnd - INDY_RAM_BASE) / (1024 * 1024), INDY_RAM_BASE, &_end);
 
-	if (sRamEnd - INDY_RAM_BASE < LOADER_MINIMUM_RAM)
-		panic("at least 64 MB of RAM are required");
+	dprintf("memory controller: MEMCFG0 %#" B_PRIx32 ", MEMCFG1 %#" B_PRIx32
+		", SYSID %#" B_PRIx32 "\n", indy_read32(INDY_MC_MEMCFG0),
+		indy_read32(INDY_MC_MEMCFG1), indy_read32(INDY_MC_SYSID));
+
+	if (sRamEnd - INDY_RAM_BASE < LOADER_MINIMUM_RAM) {
+		panic("%" B_PRIu64 " MB of contiguous RAM found at %#x, at least "
+			"64 MB are required",
+			(uint64)(sRamEnd - INDY_RAM_BASE) / (1024 * 1024), INDY_RAM_BASE);
+	}
 
 	gKernelArgs.num_physical_memory_ranges = 0;
 	insert_physical_memory_range(INDY_RAM_BASE, sRamEnd - INDY_RAM_BASE);

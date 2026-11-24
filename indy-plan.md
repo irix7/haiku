@@ -556,6 +556,37 @@ Open:
   haiku-os.org, which has no mips packages.
 - `uname -s` prints `Haiku`: `config.guess` maps it to the `*-haiku` triple.
 
+
+### 1.10 First boots on the real Indy, 2026-11-25
+
+Setup on the host: `/var/lib/sgi-netboot/muse` is the netboot kernel and
+`irix7` links to it (dnsmasq answers every BOOTP request with `irix7`).
+`remote_disk_server` serves `generated.mips/indy-real.image` on UDP 8765. The
+Indy has a graphics console and no serial cable.
+
+- Boot 1: the PROM loaded the file, then the screen stayed as it was. Loader
+  and kernel wrote to serial port 1 only.
+- The loader now also writes through ARCS `Write` (firmware vector slot 27,
+  `arcs_call()` in `entry.S`) until it replaces the exception vectors.
+- Boot 2: `PANIC: at least 64 MB of RAM are required`. The loader runs on
+  the real PROM and the ARCS console works. The panic now prints the RAM
+  size, MEMCFG0, MEMCFG1 and SYSID.
+- The kernel has a text console on the Newport
+  (`arch_newport_console.cpp`): 213 x 85 characters in the 6 x 12 font,
+  drawn through the REX3 host data port, wrapping at the bottom. It is on
+  when the PROM has `gfx=alive` (the loader passes this in
+  `platform_args.prom_graphics`), stops when the newport driver is opened,
+  and draws again in the kernel debugger. Checked on iris.
+- The waits for the SCC transmitter are bounded in loader and kernel.
+
+Open:
+
+- The loader needs 64 MB: the kernel is linked at 16 MB, the loader's
+  scratch memory is at 24 to 32 MB, and its allocations grow down from the
+  end of RAM. A machine with less needs a different layout.
+- On a headless iris the loader lines appear twice on the serial console:
+  the PROM's `console` variable is not `d` there.
+
 ## 2. Workspace and environment
 
 | Path | Content |

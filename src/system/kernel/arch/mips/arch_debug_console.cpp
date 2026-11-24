@@ -133,6 +133,8 @@ arch_debug_serial_putchar(const char c)
 		serial_putchar('\r');
 	serial_putchar(c);
 
+	mips_newport_console_putchar(c);
+
 	if (network_terminal_output()) {
 		if (c == '\n')
 			mips_debug_net_putchar('\r');
@@ -163,6 +165,7 @@ status_t
 arch_debug_console_init(kernel_args* args)
 {
 	mips_debug_net_init(args);
+	mips_newport_console_init(args);
 	return B_OK;
 }
 

@@ -24,6 +24,9 @@ typedef struct {
 	uint32	arcs_argc;
 	uint32	arcs_argv;
 	uint32	arcs_envp;
+	// Not 0 when the PROM reports a working display ("gfx=alive"). The
+	// kernel then draws its debug output on the Newport.
+	uint32	prom_graphics;
 } platform_kernel_args;
 
 

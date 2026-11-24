@@ -162,6 +162,9 @@ device_open(const char* name, uint32 flags, void** _cookie)
 		status_t status = newport_init(sInfo);
 		if (status != B_OK)
 			return status;
+
+		// app_server draws from now on
+		mips_newport_console_stop();
 	}
 
 	sInfo.open_count++;

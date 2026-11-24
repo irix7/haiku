@@ -276,6 +276,9 @@ arcs_start(uint32 argc, uint32 argv, uint32 envp)
 	gKernelArgs.platform_args.arcs_argc = argc;
 	gKernelArgs.platform_args.arcs_argv = argv;
 	gKernelArgs.platform_args.arcs_envp = envp;
+	gKernelArgs.platform_args.prom_graphics = console_prom_graphics();
+	dprintf("PROM display: %s\n",
+		console_prom_graphics() ? "alive" : "none reported");
 
 	cpu_init();
 	mmu_init();
