@@ -33,9 +33,16 @@ if [ "$STEP" != package ]; then
 # 1. The target libraries link against libroot. Put a stub libroot and the
 #    start files into the sysroot. The stub is built here: its jam target
 #    exists only in a build configured with --bootstrap.
+#    haikuporter removes the sysroot of the cross tools after each port it
+#    builds, so the headers are staged here again.
 export PATH="$PREFIX/bin:$PATH"
 lib="$SYSROOT/boot/system/develop/lib"
-mkdir -p "$lib" "$STAGE"
+include="$SYSROOT/boot/system/develop/headers"
+mkdir -p "$lib" "$include" "$STAGE"
+for directory in config os posix; do
+	rm -rf "$include/$directory"
+	cp -r "$TOP/headers/$directory" "$include/$directory"
+done
 OUTPUT="$OUTPUT" "$TOP/indy/jam.sh" '<src!system!glue!mips>start_dyn.o' \
 	'<src!system!glue!mips>init_term_dyn.o' \
 	'<src!system!glue!arch!mips!mips>crti.o' \
