@@ -36,7 +36,7 @@ if [ "$STEP" != package ]; then
 export PATH="$PREFIX/bin:$PATH"
 lib="$SYSROOT/boot/system/develop/lib"
 mkdir -p "$lib" "$STAGE"
-"$TOP/indy/jam.sh" '<src!system!glue!mips>start_dyn.o' \
+OUTPUT="$OUTPUT" "$TOP/indy/jam.sh" '<src!system!glue!mips>start_dyn.o' \
 	'<src!system!glue!mips>init_term_dyn.o' \
 	'<src!system!glue!arch!mips!mips>crti.o' \
 	'<src!system!glue!arch!mips!mips>crtn.o' '<build>package'
