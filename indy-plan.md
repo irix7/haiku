@@ -54,7 +54,7 @@ Rules:
 | M2 loader | `haiku_loader: archive mounted` | Done 2026-11-18 on iris. The serial gate shows `haiku_loader: start`, the Count rate (33.0 MHz), `RAM: 64 MB`, `haiku_loader: archive mounted`, `haiku_loader: kseg2 ok`, then the kernel's first line. |
 | M3 kernel core | `haiku: m3 threads ok` | Gate passes on iris 2026-11-18: `./indy/gate.sh generated.mips/haiku-indy-netboot "haiku: m3 threads ok"`. User mode, FPU and signal code have not run. |
 | M4 modules, interrupts, storage | `haiku: m4 boot volume mounted` | M4.1 to M4.4 work on iris 2026-11-18: add-ons load, `wd33c93: controller ready`, the disk is published as `disk/scsi/0/1/0/raw`, and with a BFS image the log shows `bfs: mounted "Haiku"` and `Mounted boot partition`. The boot then stops at `error starting "/boot/system/servers/launch_daemon"`, because the volume is empty. M4.5 (interrupts, DMA) not written. |
-| M5 userland | `haiku: m5 userland` | Arch files written (M5.1 to M5.3). `libroot.so` and `runtime_loader` link (section 1.4). M5.4 done 2026-11-24 (section 1.3). M5.5: every package but `gcc_bootstrap` builds in CI (section 1.5). M5.6 not started. |
+| M5 userland | `haiku: m5 userland` | Arch files written (M5.1 to M5.3). `libroot.so` and `runtime_loader` link (section 1.4). M5.4 done 2026-11-24 (section 1.3). M5.5: every package but `gcc_bootstrap` builds in CI (section 1.5). M5.6 done 2026-11-24: `indy/gate-m5.sh` passes (section 1.6). |
 | M6 desktop | `haiku: m6 desktop` plus screenshot | M6.1 done on iris 2026-11-18 (`make -C indy gate-rex3`, both gradients drawn). Driver, accelerant, app_server hook, isa and ps2 changes written, not run. |
 | M7 network | `haiku: m7 ping ok` | The Seeq driver works on iris 2026-11-18: the kernel configures the interface and mounts its boot volume from a RemoteDisk server (D10a). DHCP and ping from userland not run. |
 | M8 physical Indy | same markers on the machine's serial port | Not started |
@@ -358,14 +358,71 @@ What the ports needed (all in `irix7/haikuports.cross`, branch `indy-mips`):
 
 Open:
 
-- `gcc_bootstrap`, the compiler that runs on Haiku, is not built. The list
-  still names upstream's 13.3.0 recipe, which needs in-tree gmp, mpfr, mpc and
-  isl (the irix7 GCC fork has none), sets `ac_cv_c_bigendian=no`, and would
-  replace the syslibs packages of `syslibs.sh`. It needs a recipe of its own
-  for the GCC 17 fork.
-- No package has run: none of this code has executed on mips.
+- `gcc_bootstrap`, the compiler that runs on Haiku, is not built.
+  `HaikuPortsCross/mips` no longer lists it, and the mips bootstrap image has
+  no source package directory. Upstream's 13.3.0 recipe needs in-tree gmp,
+  mpfr, mpc and isl (the irix7 GCC fork has none), sets
+  `ac_cv_c_bigendian=no`, and would replace the syslibs packages of
+  `syslibs.sh`. It needs a recipe of its own for the GCC 17 fork.
+- No program of a port package has run on mips. `launch_daemon` of
+  `haiku.hpkg` runs (section 1.6).
 - The libffi change for the 64-bit long double is untested at run time.
 - CI runs start by manual dispatch only.
+
+### 1.6 M5.6 image and first userland program, 2026-11-24
+
+`indy/gate-m5.sh` (`make -C indy gate-m5`) builds `haiku-netboot-indy` and the
+600 MB bootstrap image in `/mnt/europa/haiku-toolchain/bootstrap`, boots the
+netboot kernel on iris with 128 MB and the image as SCSI disk 1
+(`BOOT_ARGS=disk`), and waits for `haiku: m5 userland`. `launch_daemon` prints
+the marker with `debug_printf()` at the start of `main()`. The gate passed on
+2026-11-24.
+
+The port packages of the image come from the release `mips-packages`: copy
+them to `objects/haiku/mips/packaging/repositories/HaikuPortsCross-build/
+packages` of the bootstrap directory before the jam run.
+
+What the image build needed:
+
+- zydis: `ZYAN_MIPS` for 32-bit mips. Installer: `BOOTMIPS`. app_server
+  Jamfile: private header directory `graphics/common`. Kernel: `generic_msi.cpp`
+  for the PCI bus manager.
+- `gcc_bootstrap` removed from `HaikuPortsCross/mips`: the repository index
+  depends on every listed package.
+
+What the first program needed, in the order found:
+
+| Symptom | Cause | Fix |
+|---|---|---|
+| `error starting launch_daemon`, `B_BAD_ADDRESS` | `MAX_USER_STACK_SIZE` was 16384 pages, 256 MB with 16 kB pages | 64 MB in `thread_defs.h` |
+| panic in `~MIPSVMTranslationMap` | `arch_vm_aspace_swap()` was empty | it sets `gMipsExceptionBlock->page_directory` and flushes the TLB |
+| panic `set_page_state(): target state is free/clear` | page table pages were freed with `vm_page_set_state()` | `vm_page_free()` |
+| `Unhandled pheader type 0x70000000` | `PT_MIPS_REGINFO`, `PT_MIPS_ABIFLAGS` | accepted in the kernel, the boot loader and `runtime_loader` |
+| `Could not map image: Bad data` | the linker aligns segments to 64 kB | `MAX_PAGE_SIZE 0x10000` in `runtime_loader/images.cpp` |
+| read fault at 0x40 in libroot's `initialize_before` | GCC emitted data symbols without type and size, so the lookup of `__gRuntimeLoader` by type failed | `ASM_DECLARE_OBJECT_NAME mips_declare_object_name` in `gcc/config/mips/haiku.h` (irix7/gcc 88e4174a0) |
+| jump to 0 from `__once_proxy` in libstdc++ | `R_MIPS_TLS_DTPREL32` used the `st_value` of the undefined symbol of the referencing image | `arch_relocate.cpp` resolves the symbol in the defining image |
+| SIGBUS in `BMessage::FindData` | libbe reads unaligned 32-bit fields | `emulate_unaligned_access()` also serves user mode, with `user_memcpy()` |
+| team exits with `B_NOT_AN_EXECUTABLE` after all libraries are initialised | `e_entry` was 0: the MIPS linker emulations use `ENTRY=__start` | `ENTRY=_start` in `ld/emulparams/elf_mips_haiku.sh` (irix7/binutils-gdb f4dcc0a0) |
+
+The compiler and linker fixes change every object and every executable. jam
+does not track either tool: after a toolchain change delete
+`objects/haiku/mips/{common,release}` and `build_packages` of the build
+directory, and rebuild the ports with `rebuild=true`.
+
+`send_signal()` in `arch_int.cpp` prints the frame and the functions of `epc`
+and `ra` for every exception in user mode. That is how the faults above were
+found.
+
+Open:
+
+- The unaligned access emulation handles `lh`, `lhu`, `lw`, `lwu`, `ld`, `sh`,
+  `sw` and `sd`. An unaligned `lwc1`, `ldc1`, `swc1` or `sdc1` still raises
+  SIGBUS. Each emulated access costs an exception: `BMessage` is the first
+  candidate for packed accessors (M9).
+- Nothing after the marker is checked: no shell, no app_server.
+- The M5 gate does not run in CI.
+- iris prints `MC: CPU Error at 000b8000`: the `vga_text` console module
+  probes PC video memory.
 
 ## 2. Workspace and environment
 

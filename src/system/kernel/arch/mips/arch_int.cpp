@@ -18,6 +18,7 @@
 #include <boot/kernel_args.h>
 #include <cpu.h>
 #include <debug.h>
+#include <elf.h>
 #include <interrupts.h>
 #include <kscheduler.h>
 #include <ksignal.h>
@@ -157,6 +158,23 @@ gdb_signal(uint32 signalNumber)
 }
 
 
+/*!	Prints the function and the image of an address of the current team.
+*/
+static void
+dump_user_symbol(const char* name, addr_t address)
+{
+	addr_t base = 0;
+	const char* symbol = NULL;
+	const char* image = NULL;
+	bool exact = false;
+	elf_debug_lookup_user_symbol_address(thread_get_current_thread()->team,
+		address, &base, &symbol, &image, &exact);
+	dprintf("%s %#" B_PRIxADDR ": %s + %#" B_PRIxADDR " in %s\n", name, address,
+		symbol != NULL ? symbol : "?", address - base,
+		image != NULL ? image : "?");
+}
+
+
 /*!	Sends a signal for an exception in user mode. Panics for an exception in
 	kernel mode.
 */
@@ -179,6 +197,9 @@ send_signal(iframe* frame, debug_exception_type type, uint32 signalNumber,
 	dump_frame(frame);
 
 	enable_interrupts();
+
+	dump_user_symbol("epc", (addr_t)frame->epc);
+	dump_user_symbol("ra ", (addr_t)frame->r[31]);
 
 	if ((sigaction(signalNumber, NULL, &action) == 0
 			&& action.sa_handler != SIG_DFL
@@ -554,11 +575,15 @@ emulate_unaligned_access(iframe* frame, addr_t address)
 	// In a delay slot the faulting instruction follows the branch at epc.
 	bool inDelaySlot = (frame->cause & CP0_CAUSE_BD) != 0;
 	addr_t pc = (addr_t)frame->epc + (inDelaySlot ? 4 : 0);
+	bool isUser = is_user_frame(frame);
 
+	// The instruction ran a moment ago, so its page is mapped. The data of a
+	// user access can be paged out or missing: user_memcpy() takes the page
+	// fault with interrupts enabled.
 	uint32 instruction = *(uint32*)pc;
 	uint32 opcode = instruction >> 26;
 	uint32 target = (instruction >> 16) & 0x1f;
-	uint8* memory = (uint8*)address;
+	uint8 memory[8];
 
 	size_t size;
 	bool isStore = false;
@@ -603,12 +628,27 @@ emulate_unaligned_access(iframe* frame, addr_t address)
 	if (inDelaySlot && !emulate_branch(frame, (addr_t)frame->epc, &nextPC))
 		return false;
 
+	if (isUser) {
+		if (!IS_USER_ADDRESS(address) || !IS_USER_ADDRESS(address + size - 1))
+			return false;
+		enable_interrupts();
+	}
+
 	// big-endian: the most significant byte is first
 	if (isStore) {
 		uint64 value = frame->r[target];
 		for (size_t i = 0; i < size; i++)
 			memory[i] = (uint8)(value >> ((size - 1 - i) * 8));
+		if (!isUser)
+			memcpy((void*)address, memory, size);
+		else if (user_memcpy((void*)address, memory, size) != B_OK)
+			return false;
 	} else {
+		if (!isUser)
+			memcpy(memory, (void*)address, size);
+		else if (user_memcpy(memory, (void*)address, size) != B_OK)
+			return false;
+
 		uint64 value = 0;
 		for (size_t i = 0; i < size; i++)
 			value = (value << 8) | memory[i];
@@ -750,7 +790,9 @@ mips_handle_exception(iframe* frame)
 
 		case MIPS_EXCEPTION_ADDRESS_LOAD:
 		case MIPS_EXCEPTION_ADDRESS_STORE:
-			if (!isUser && validAddress && IS_KERNEL_ADDRESS(address)
+			// Haiku's userland reads unaligned fields, for example the item
+			// sizes of a BMessage, so the kernel emulates the access.
+			if (validAddress && IS_KERNEL_ADDRESS(address) == !isUser
 				&& address != (addr_t)frame->epc
 				&& emulate_unaligned_access(frame, address)) {
 				return;

@@ -165,11 +165,21 @@ relocate_rel(image_t* rootImage, image_t* image, const got_info& info,
 			}
 
 			case R_MIPS_TLS_DTPREL32:
-				// The offset in the module's TLS block, biased by
-				// TLS_DTV_OFFSET, which __tls_get_addr() adds again.
-				value += SYMBOL(image, symbolIndex)->st_value
-					- TLS_DTV_OFFSET;
+			{
+				// The offset in the TLS block of the module that defines the
+				// symbol, biased by TLS_DTV_OFFSET, which __tls_get_addr()
+				// adds again. resolve_symbol() gives the plain st_value of a
+				// TLS symbol.
+				addr_t offset = 0;
+				if (symbolIndex != 0) {
+					status_t status = resolve(rootImage, image, symbolIndex,
+						cache, &offset, NULL);
+					if (status < B_OK)
+						return status;
+				}
+				value += offset - TLS_DTV_OFFSET;
 				break;
+			}
 
 			default:
 				TRACE("unhandled relocation type %u\n", type);
