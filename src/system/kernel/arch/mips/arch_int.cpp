@@ -250,13 +250,17 @@ dispatch_mapped(uint8 pending)
 		if ((pending & (1 << bit)) == 0)
 			continue;
 
-		io_interrupt_handler(INDY_IRQ_MAPPED(bit), B_LEVEL_TRIGGERED);
 		if (INDY_IRQ_MAPPED(bit) == INDY_IRQ_KEYBOARD_MOUSE) {
-			// The ps2 bus manager installs its handlers on the PC's
-			// keyboard and mouse vectors.
+			// The ps2 bus manager installs the same handler on the PC's
+			// keyboard and mouse vectors, 1 and 12. It serves both devices,
+			// so one call is enough. A second call, or a call of the
+			// mapped vector that has no handler, counts as unhandled, and
+			// the kernel disables a vector after 10000 of those.
 			io_interrupt_handler(1, B_LEVEL_TRIGGERED);
-			io_interrupt_handler(12, B_LEVEL_TRIGGERED);
+			continue;
 		}
+
+		io_interrupt_handler(INDY_IRQ_MAPPED(bit), B_LEVEL_TRIGGERED);
 	}
 }
 

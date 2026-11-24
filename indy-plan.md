@@ -497,13 +497,28 @@ Open:
 - `app_server` prints `Finding best mode for 1024x768 failed` and takes the
   only mode of the accelerant, 1280 x 1024. The `Use 1688x1066` line prints
   the total timing.
-- `ps2: keyboard reset failed, status 0x80000009`: no keyboard and no mouse
-  device under iris. Input is the next task.
+- Input: fixed the same day, see below. `ptr click` of the iris monitor has
+  not opened a menu yet, and `ps2 type` has no text field to type into: the
+  image has no Terminal.
 - `package_daemon` reports every package as `not installable` on the first
   boot.
 - The screenshot has a column of PROM pixels at the right edge (x = 1280 and
   1281 of a 1282 pixel wide image).
 - iris does not exit on SIGTERM after these runs; the gate needs `kill -9`.
+
+Keyboard and mouse (M6.5). Two faults:
+
+- `dispatch_mapped()` called vector 52 (mapped bit 4), which has no handler,
+  and then vectors 1 and 12 with the same ps2 handler. The kernel counted the
+  calls without a handler as unhandled and disabled the vector after 10000.
+  It now calls vector 1 only.
+- The Indy's keyboard interrupt is level triggered. While the ps2 bus manager
+  ignores interrupts (during a controller command) its handler returns without
+  reading the data port, so the handler was entered again without end. On
+  mips `ignore_interrupts()` masks the input for that time.
+
+Result: `ps2: keyboard found`, `Extended PS/2 mouse found`, and `ptr move` of
+the iris monitor moves the cursor on the desktop.
 
 ## 2. Workspace and environment
 
