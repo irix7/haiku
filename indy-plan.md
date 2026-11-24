@@ -581,9 +581,16 @@ Indy has a graphics console and no serial cable.
 
 Open:
 
-- The loader needs 64 MB: the kernel is linked at 16 MB, the loader's
-  scratch memory is at 24 to 32 MB, and its allocations grow down from the
-  end of RAM. A machine with less needs a different layout.
+- The Indy has 32 MB. The loader's layout was changed for that (scratch at
+  8 to 12 MB, regions above and below the kernel image, `mmu.h`), and the
+  slab areas are 8 MB (they were 2048 pages, 32 MB with 16 kB pages, mapped
+  in full at boot). On iris with `RAM=32` the kernel mounts the boot volume
+  and starts `launch_daemon`. It then jumps to address 0 from
+  `libicuuc.so.74` (ra 0x4170a4) while `low resource pages` is critical;
+  620 of 2048 pages are free at that moment and 1182 are wired. Not solved.
+  `RAM=32 NO_BUILD=1 indy/gate-m5.sh` reproduces it.
+- The unpacked boot archive (11 MB) stays allocated after the boot. With
+  32 MB that is a third of the memory.
 - On a headless iris the loader lines appear twice on the serial console:
   the PROM's `console` variable is not `d` there.
 

@@ -435,6 +435,13 @@ handle_page_fault(iframe* frame, addr_t address, bool isWrite)
 	addr_t newPC = 0;
 	enable_interrupts();
 
+	if (isUser && address < B_PAGE_SIZE) {
+		// A jump or an access through a null pointer. The caller is in ra.
+		dprintf("null pointer access in user mode: address %#" B_PRIxADDR
+			", pc %#" B_PRIxADDR "\n", address, pc);
+		dump_user_symbol("ra", (addr_t)frame->r[MIPS_REG_RA]);
+	}
+
 	vm_page_fault(address, pc, isWrite, address == pc, isUser, &newPC);
 
 	if (newPC != 0) {
