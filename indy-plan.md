@@ -428,10 +428,21 @@ Open:
   Nothing checks them. The gate runs headless, so `app_server` finds no
   Newport board. Programs of the port packages (`bash`) need the packages of
   the CI run that follows the linker fix.
+- The boot volume is read-only. BFS is little-endian on disk, and
+  `Volume::Mount()` forces `B_MOUNT_READ_ONLY` when the host byte order
+  differs. With the guard lifted for mips (tried 2026-11-24, reverted) BFS
+  prints `Could not find value in index "size"` and panics in the log flusher
+  (`Journal.cpp:327`, `run.length == 1`): the byte-swapped write path has
+  bugs. A writable volume needs those fixed, either in the kernel (little-
+  endian disk) or in `bfs_shell` on the build host (big-endian disk with
+  `BFS_BIG_ENDIAN_ONLY`, no swaps on the Indy). First task of M6.
 - Memory: with 128 MB the kernel reports `low resource memory: critical` and
   `runtime_loader` fails with `Out of memory` for some teams, while 3485 of
-  8192 pages are cached and 1687 wired. The limit is committed memory. Find
-  which reservations grow with the 16 kB page (M6).
+  8192 pages are cached. `sAvailableMemoryAndSwap` runs out: there is no swap
+  file (`/var/swap` is on the read-only volume), and each team commits a heap
+  area of about 8.5 MB. The sizes in `PagesAllocator.cpp` (`kFreeMinimum`,
+  `kLargestUsefulChunk`) and the caches of the OpenBSD malloc count in pages,
+  so they are four times larger with 16 kB pages.
 - The loader's allocations at the end of RAM (15.7 MB, printed by
   `mmu_init_for_kernel()`) stay allocated in the kernel.
 - The M5 gate does not run in CI.
