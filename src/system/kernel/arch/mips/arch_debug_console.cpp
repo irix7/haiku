@@ -44,8 +44,18 @@ serial_try_getchar()
 static void
 serial_putchar(char c)
 {
-	while ((indy_read8(INDY_SCC_B_CONTROL) & INDY_SCC_TX_EMPTY) == 0)
-		;
+	// Without a transmit clock the transmitter never empties. The wait is
+	// bounded: a character takes 1 ms at 9600 baud.
+	static bool sDead = false;
+	if (sDead)
+		return;
+	for (int32 tries = 0; (indy_read8(INDY_SCC_B_CONTROL)
+			& INDY_SCC_TX_EMPTY) == 0; tries++) {
+		if (tries > 1000000) {
+			sDead = true;
+			return;
+		}
+	}
 	indy_write8(INDY_SCC_B_DATA, c);
 }
 

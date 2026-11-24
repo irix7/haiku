@@ -125,3 +125,47 @@ arcs_enter_kernel:
 	jr	$25
 	 move	$5, $0				// current CPU
 	.end	arcs_enter_kernel
+
+
+/*
+ * int32 arcs_call(uint32 function, uint32 a0, uint32 a1, uint32 a2, uint32 a3)
+ * Calls a function of the ARCS firmware vector. The PROM is o32 code: it
+ * stores its arguments in the 16 bytes above the stack pointer, and it saves
+ * only the low 32 bits of the callee-saved registers. The loader is n32
+ * code, so the full registers are saved here.
+ */
+	.globl	arcs_call
+	.ent	arcs_call
+arcs_call:
+	daddiu	$29, $29, -128
+	sd	$31, 16($29)
+	sd	$16, 24($29)
+	sd	$17, 32($29)
+	sd	$18, 40($29)
+	sd	$19, 48($29)
+	sd	$20, 56($29)
+	sd	$21, 64($29)
+	sd	$22, 72($29)
+	sd	$23, 80($29)
+	sd	$28, 88($29)
+	sd	$30, 96($29)
+	move	$25, $4
+	move	$4, $5
+	move	$5, $6
+	move	$6, $7
+	jalr	$25
+	move	$7, $8
+	ld	$31, 16($29)
+	ld	$16, 24($29)
+	ld	$17, 32($29)
+	ld	$18, 40($29)
+	ld	$19, 48($29)
+	ld	$20, 56($29)
+	ld	$21, 64($29)
+	ld	$22, 72($29)
+	ld	$23, 80($29)
+	ld	$28, 88($29)
+	ld	$30, 96($29)
+	jr	$31
+	daddiu	$29, $29, 128
+	.end	arcs_call

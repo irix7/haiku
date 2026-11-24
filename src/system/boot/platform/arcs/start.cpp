@@ -198,6 +198,10 @@ platform_start_kernel(void)
 		gKernelArgs.kernel_image.Pointer());
 	addr_t entry = image->elf_header.e_entry;
 
+	dprintf("Muse: starting the kernel. Its log goes to serial port 1 "
+		"(9600 8N1); the screen stays as it is until the desktop draws.\n");
+	console_leave_prom();
+
 	install_vectors();
 	mmu_test_kernel_mapping();
 

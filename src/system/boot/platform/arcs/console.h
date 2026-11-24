@@ -14,6 +14,7 @@ extern "C" {
 #endif
 
 status_t console_init(void);
+void console_leave_prom(void);
 
 void serial_putc(char c);
 void serial_puts(const char* string, size_t size);

@@ -47,11 +47,77 @@ FILE* stdout;
 FILE* stderr;
 
 
+extern "C" int32 arcs_call(uint32 function, uint32 a0, uint32 a1, uint32 a2,
+	uint32 a3);
+
+// The ARCS system parameter block and the firmware vector slot of
+// Write(fileID, buffer, length, count). File 1 is the PROM's console: the
+// graphics textport, or serial port 1 with console=d.
+#define ARCS_SPB				0xa0001000
+#define ARCS_SPB_SIGNATURE		0x53435241
+#define ARCS_SPB_FIRMWARE_VECTOR	32
+#define ARCS_VECTOR_WRITE		27
+#define ARCS_VECTOR_GET_ENVIRONMENT	30
+#define ARCS_STDOUT				1
+
+static bool sPromConsole = true;
+static bool sPromIsSerial = false;
+static bool sSerialDead = false;
+
+
+/*!	Stops the output through the PROM. The loader calls this before it
+	replaces the exception vectors of the PROM.
+*/
+void
+console_leave_prom(void)
+{
+	sPromConsole = false;
+}
+
+
+static void
+prom_write(const char* string, size_t size)
+{
+	if (!sPromConsole
+		|| *(volatile uint32*)ARCS_SPB != ARCS_SPB_SIGNATURE) {
+		return;
+	}
+
+	uint32 vector = *(volatile uint32*)(ARCS_SPB + ARCS_SPB_FIRMWARE_VECTOR);
+	uint32 write = *(volatile uint32*)(addr_t)(vector
+		+ 4 * ARCS_VECTOR_WRITE);
+
+	// the PROM wants "\r\n"
+	static char buffer[128];
+	static uint32 count;
+	size_t used = 0;
+	for (size_t i = 0; i < size; i++) {
+		if (string[i] == '\n')
+			buffer[used++] = '\r';
+		buffer[used++] = string[i];
+		if (used >= sizeof(buffer) - 2 || i + 1 == size) {
+			arcs_call(write, ARCS_STDOUT, (uint32)(addr_t)buffer, used,
+				(uint32)(addr_t)&count);
+			used = 0;
+		}
+	}
+}
+
+
 void
 serial_putc(char c)
 {
-	while ((indy_read8(INDY_SCC_B_CONTROL) & INDY_SCC_TX_EMPTY) == 0)
-		;
+	// Without a transmit clock the transmitter never empties. The wait is
+	// bounded: a character takes 1 ms at 9600 baud.
+	if (sSerialDead)
+		return;
+	for (int32 tries = 0; (indy_read8(INDY_SCC_B_CONTROL)
+			& INDY_SCC_TX_EMPTY) == 0; tries++) {
+		if (tries > 1000000) {
+			sSerialDead = true;
+			return;
+		}
+	}
 	indy_write8(INDY_SCC_B_DATA, c);
 }
 
@@ -59,6 +125,10 @@ serial_putc(char c)
 void
 serial_puts(const char* string, size_t size)
 {
+	// With console=d the PROM's console is this serial port.
+	if (!sPromIsSerial)
+		prom_write(string, size);
+
 	for (size_t i = 0; i < size; i++) {
 		if (string[i] == '\n')
 			serial_putc('\r');
@@ -202,6 +272,19 @@ console_wait_for_key(void)
 status_t
 console_init(void)
 {
+	// "console=d" puts the PROM's console on serial port 1, where the
+	// loader writes anyway.
+	if (*(volatile uint32*)ARCS_SPB == ARCS_SPB_SIGNATURE) {
+		uint32 vector
+			= *(volatile uint32*)(ARCS_SPB + ARCS_SPB_FIRMWARE_VECTOR);
+		uint32 getEnvironment = *(volatile uint32*)(addr_t)(vector
+			+ 4 * ARCS_VECTOR_GET_ENVIRONMENT);
+		static const char kName[] = "console";
+		const char* value = (const char*)(addr_t)arcs_call(getEnvironment,
+			(uint32)(addr_t)kName, 0, 0, 0);
+		sPromIsSerial = value != NULL && (value[0] == 'd' || value[0] == 'D');
+	}
+
 	gConsoleNode = &sConsole;
 	stdin = (FILE*)&sConsole;
 	stdout = (FILE*)&sConsole;
