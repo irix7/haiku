@@ -404,6 +404,10 @@ What the first program needed, in the order found:
 | SIGBUS in `BMessage::FindData` | libbe reads unaligned 32-bit fields | `emulate_unaligned_access()` also serves user mode, with `user_memcpy()` |
 | team exits with `B_NOT_AN_EXECUTABLE` after all libraries are initialised | `e_entry` was 0: the MIPS linker emulations use `ENTRY=__start` | `ENTRY=_start` in `ld/emulparams/elf_mips_haiku.sh` (irix7/binutils-gdb f4dcc0a0) |
 
+The USB stack is not in the mips image (`@!mips` in `packages/Haiku`,
+`packages/HaikuBootstrap`, `definitions/minimum`, `NetBootArchive`). Its
+allocator wires 2048 pages, 32 MB with 16 kB pages, and the Indy has no USB.
+
 The compiler and linker fixes change every object and every executable. jam
 does not track either tool: after a toolchain change delete
 `objects/haiku/mips/{common,release}` and `build_packages` of the build
@@ -419,7 +423,17 @@ Open:
   `sw` and `sd`. An unaligned `lwc1`, `ldc1`, `swc1` or `sdc1` still raises
   SIGBUS. Each emulated access costs an exception: `BMessage` is the first
   candidate for packed accessors (M9).
-- Nothing after the marker is checked: no shell, no app_server.
+- After the marker `launch_daemon` starts `registrar`, `mount_server`,
+  `net_server`, `syslog_daemon`, `debug_server`, `app_server` and `Tracker`.
+  Nothing checks them. The gate runs headless, so `app_server` finds no
+  Newport board. Programs of the port packages (`bash`) need the packages of
+  the CI run that follows the linker fix.
+- Memory: with 128 MB the kernel reports `low resource memory: critical` and
+  `runtime_loader` fails with `Out of memory` for some teams, while 3485 of
+  8192 pages are cached and 1687 wired. The limit is committed memory. Find
+  which reservations grow with the 16 kB page (M6).
+- The loader's allocations at the end of RAM (15.7 MB, printed by
+  `mmu_init_for_kernel()`) stay allocated in the kernel.
 - The M5 gate does not run in CI.
 - iris prints `MC: CPU Error at 000b8000`: the `vga_text` console module
   probes PC video memory.

@@ -342,9 +342,9 @@ SYSTEM_ADD_ONS_DRIVERS_NET = [ FFilterByBuildFeatures
 	}@ # x86,x86_64,riscv64,arm64
 
 	etherpci
-	usb_davicom
-	usb_ncm
-	usb_rndis
+	usb_davicom@!mips
+	usb_ncm@!mips
+	usb_rndis@!mips
 	wb840
 ] ;
 
@@ -376,7 +376,7 @@ SYSTEM_ADD_ONS_BUS_MANAGERS = [ FFilterByBuildFeatures
 	ps2@x86,x86_64,mips
 	fdt@riscv64,arm,arm64
 	random
-	usb
+	usb@!mips
 	virtio
 ] ;
 

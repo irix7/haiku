@@ -31,9 +31,9 @@ AddFilesToPackage add-ons kernel busses scsi :
 	virtio_scsi
 	;
 AddFilesToPackage add-ons kernel busses usb :
-	<usb>uhci
-	<usb>ohci
-	<usb>ehci
+	<usb>uhci@!mips
+	<usb>ohci@!mips
+	<usb>ehci@!mips
 	;
 AddFilesToPackage add-ons kernel busses virtio :
 	virtio_mmio@riscv64,arm,arm64
@@ -47,7 +47,7 @@ AddFilesToPackage add-ons kernel debugger :
 	<kdebug>disasm@x86
 	#<kdebug>hangman
 	<kdebug>invalidate_on_exit
-	<kdebug>usb_keyboard
+	<kdebug>usb_keyboard@!mips
 	<kdebug>run_on_exit
 	;
 AddFilesToPackage add-ons kernel file_systems : $(SYSTEM_ADD_ONS_FILE_SYSTEMS) ;
@@ -126,7 +126,7 @@ AddDriversToPackage audio old
 AddDriversToPackage midi
 	: $(SYSTEM_ADD_ONS_DRIVERS_MIDI) ;
 AddDriversToPackage bus :
-	usb_raw
+	usb_raw@!mips
 	;
 AddDriversToPackage disk virtual :
 	nbd
@@ -135,7 +135,7 @@ AddDriversToPackage graphics
 	: $(SYSTEM_ADD_ONS_DRIVERS_GRAPHICS) ;
 AddDriversToPackage input :
 	ps2_hid
-	usb_hid
+	usb_hid@!mips
 	wacom
 	;
 AddDriversToPackage misc :
@@ -146,7 +146,7 @@ AddDriversToPackage net
 	: $(SYSTEM_ADD_ONS_DRIVERS_NET) ;
 AddDriversToPackage ports :
 	pc_serial
-	usb_serial
+	usb_serial@!mips
 	;
 AddDriversToPackage power
 	: $(SYSTEM_ADD_ONS_DRIVERS_POWER) ;
@@ -336,10 +336,10 @@ AddBootModuleSymlinksToPackage
 	scsi_periph
 	silicon_image_3112
 	smbios@x86,x86_64
-	usb
-	<usb>uhci
-	<usb>ohci
-	<usb>ehci
+	usb@!mips
+	<usb>uhci@!mips
+	<usb>ohci@!mips
+	<usb>ehci@!mips
 	virtio
 	virtio_pci
 	virtio_mmio@arm,arm64,riscv64

@@ -64,10 +64,10 @@ AddFilesToPackage add-ons kernel busses scsi :
 	virtio_scsi
 	;
 AddFilesToPackage add-ons kernel busses usb :
-	<usb>uhci
-	<usb>ohci
-	<usb>ehci
-	<usb>xhci
+	<usb>uhci@!mips
+	<usb>ohci@!mips
+	<usb>ehci@!mips
+	<usb>xhci@!mips
 	;
 AddFilesToPackage add-ons kernel busses virtio :
 	virtio_mmio@riscv64,arm,arm64
@@ -81,7 +81,7 @@ AddFilesToPackage add-ons kernel debugger :
 	<kdebug>disasm@x86,x86_64
 	<kdebug>hangman
 	<kdebug>invalidate_on_exit
-	<kdebug>usb_keyboard
+	<kdebug>usb_keyboard@!mips
 	<kdebug>qrencode@libqrencode
 	<kdebug>run_on_exit
 	;
@@ -127,7 +127,7 @@ AddNewDriversToPackage :
 	;
 AddNewDriversToPackage disk :
 	nvme_disk
-	usb_disk
+	usb_disk@!mips
 	;
 AddNewDriversToPackage disk mmc :
 	mmc_disk
@@ -148,7 +148,7 @@ AddNewDriversToPackage power
 AddNewDriversToPackage sensor
 	: $(SYSTEM_ADD_ONS_DRIVERS_SENSOR) ;
 AddNewDriversToPackage network :
-	usb_ecm
+	usb_ecm@!mips
 	virtio_net
 	;
 AddNewDriversToPackage input :
@@ -173,7 +173,7 @@ AddDriversToPackage :
 	dprintf
 	null
 	<driver>pty
-	usb_modeswitch
+	usb_modeswitch@!mips
 	;
 AddDriversToPackage audio hmulti :
 	$(SYSTEM_ADD_ONS_DRIVERS_AUDIO) ;
@@ -184,7 +184,7 @@ AddDriversToPackage bluetooth h2 :
 AddDriversToPackage midi :
 	$(SYSTEM_ADD_ONS_DRIVERS_MIDI) ;
 AddDriversToPackage bus :
-	usb_raw
+	usb_raw@!mips
 	;
 AddDriversToPackage disk virtual :
 	nbd
@@ -196,7 +196,7 @@ AddDriversToPackage graphics
 	: $(SYSTEM_ADD_ONS_DRIVERS_GRAPHICS) ;
 AddDriversToPackage input :
 	ps2_hid
-	usb_hid
+	usb_hid@!mips
 	wacom
 	;
 AddDriversToPackage misc :
@@ -208,7 +208,7 @@ AddDriversToPackage net
 	: $(SYSTEM_ADD_ONS_DRIVERS_NET) ;
 AddDriversToPackage ports :
 	pc_serial
-	usb_serial
+	usb_serial@!mips
 	;
 
 # kernel
@@ -359,12 +359,12 @@ AddBootModuleSymlinksToPackage
 	smbios@x86,x86_64
 	sdhci
 	ufshci
-	usb
-	usb_disk
-	<usb>ehci
-	<usb>ohci
-	<usb>uhci
-	<usb>xhci
+	usb@!mips
+	usb_disk@!mips
+	<usb>ehci@!mips
+	<usb>ohci@!mips
+	<usb>uhci@!mips
+	<usb>xhci@!mips
 	virtio
 	virtio_block@arm,arm64,riscv64
 	virtio_mmio@arm,arm64,riscv64

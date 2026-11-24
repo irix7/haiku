@@ -332,6 +332,9 @@ mmu_init_for_kernel()
 	dprintf("kernel stack at %#" B_PRIx64 ", kseg2 mapped up to %#"
 		B_PRIxADDR ", page directory at %p\n",
 		gKernelArgs.cpu_kstack[0].start, sVirtualNext, sPageDirectory);
+	dprintf("loader allocations: %" B_PRIu64 " kB at the end of RAM, kernel "
+		"image %" B_PRIuADDR " kB\n", (uint64)(sRamEnd - sPhysicalNext) / 1024,
+		sKernelImageEnd != 0 ? (sKernelImageEnd - LOADER_KERNEL_BASE) / 1024 : 0);
 }
 
 
