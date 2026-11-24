@@ -146,7 +146,7 @@ MIPSVMTranslationMap::_FreeTablePage(uint32* table)
 		return;
 	}
 	DEBUG_PAGE_ACCESS_START(page);
-	vm_page_set_state(page, PAGE_STATE_FREE);
+	vm_page_free(NULL, page);
 }
 
 

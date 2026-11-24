@@ -2185,10 +2185,10 @@ index 000000000..2b117fcb1
 +}
 diff --git a/gcc/config/mips/haiku.h b/gcc/config/mips/haiku.h
 new file mode 100644
-index 000000000..bd19e9724
+index 000000000..3a555255a
 --- /dev/null
 +++ b/gcc/config/mips/haiku.h
-@@ -0,0 +1,54 @@
+@@ -0,0 +1,60 @@
 +/* Definitions for MIPS running Haiku
 +   Copyright (C) 1998, 1999, 2000, 2001, 2002, 2004
 +   Free Software Foundation, Inc.
@@ -2233,6 +2233,12 @@ index 000000000..bd19e9724
 +#undef	LINK_SPEC
 +#define LINK_SPEC "-m elf_mips_haiku %{!r:-shared} %{nostart:-e 0} " \
 +  "%{shared:-e 0} %{!shared: %{!nostart: -no-undefined}}"
++
++/* Give data symbols a type and a size, as elfos.h does.  mips.h declares
++   them without either, and Haiku's runtime_loader looks symbols up by
++   type.  */
++#undef	ASM_DECLARE_OBJECT_NAME
++#define ASM_DECLARE_OBJECT_NAME mips_declare_object_name
 +
 +/* long double is the same as double, as on Haiku's 32 bit ports.  The
 +   n32 default is 128 bits.  */

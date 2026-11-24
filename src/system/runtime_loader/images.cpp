@@ -33,7 +33,7 @@
 	// page segment alignment.
 #	define RLD_PROGRAM_BASE	0x600000
 #	define MAX_PAGE_SIZE	0x200000
-#elif defined(__arm__) || defined(__aarch64__)
+#elif defined(__arm__) || defined(__aarch64__) || defined(__mips__)
 #	define RLD_PROGRAM_BASE	0x200000
 #	define MAX_PAGE_SIZE	0x10000
 #else

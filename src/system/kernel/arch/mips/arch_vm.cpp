@@ -7,12 +7,16 @@
 #include <KernelExport.h>
 
 #include <arch/vm.h>
+#include <arch_cpu.h>
+#include <arch_exception_block.h>
 #include <arch_kernel.h>
 #include <arch_vm_translation_map.h>
 #include <boot/kernel_args.h>
 #include <kernel.h>
 #include <vm/vm.h>
 #include <vm/VMAddressSpace.h>
+
+#include "MIPSVMTranslationMap.h"
 
 
 status_t
@@ -75,7 +79,18 @@ arch_vm_init_post_modules(kernel_args* args)
 void
 arch_vm_aspace_swap(struct VMAddressSpace* from, struct VMAddressSpace* to)
 {
-	// done in arch_thread_context_switch()
+	// A dying thread calls this to leave its team's address space, which
+	// may be deleted right after. arch_thread_context_switch() does the
+	// same for thread switches.
+	uint32 directory = (uint32)(addr_t)((MIPSVMTranslationMap*)
+		to->TranslationMap())->PageDirectory();
+
+	cpu_status state = disable_interrupts();
+	if (directory != gMipsExceptionBlock->page_directory) {
+		gMipsExceptionBlock->page_directory = directory;
+		mips_tlb_flush_all();
+	}
+	restore_interrupts(state);
 }
 
 

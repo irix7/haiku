@@ -173,6 +173,11 @@ send_signal(iframe* frame, debug_exception_type type, uint32 signalNumber,
 	struct sigaction action;
 	Thread* thread = thread_get_current_thread();
 
+	dprintf("thread %" B_PRId32 " (%s): signal %" B_PRIu32 ", code %" B_PRId32
+		", address %#" B_PRIxADDR "\n", thread->id, thread->name, signalNumber,
+		signalCode, signalAddress);
+	dump_frame(frame);
+
 	enable_interrupts();
 
 	if ((sigaction(signalNumber, NULL, &action) == 0
@@ -794,6 +799,10 @@ mips_handle_exception(iframe* frame)
 
 		case MIPS_EXCEPTION_BREAKPOINT:
 			if (isUser) {
+				dprintf("thread %" B_PRId32 " (%s): break instruction\n",
+					thread_get_current_thread()->id,
+					thread_get_current_thread()->name);
+				dump_frame(frame);
 				enable_interrupts();
 				user_debug_breakpoint_hit(true);
 			} else {

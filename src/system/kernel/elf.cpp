@@ -2447,6 +2447,10 @@ load_kernel_add_on(const char *path)
 				continue;
 			case PT_RISCV_ATTRIBUTES:
 				// TODO: check ABI compatibility attributes
+				// PT_MIPS_ABIFLAGS has the same number
+				continue;
+			case PT_NULL:
+			case PT_MIPS_REGINFO:
 				continue;
 			default:
 				dprintf("%s: unhandled pheader type %#" B_PRIx32 "\n", fileName,
