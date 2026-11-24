@@ -2161,7 +2161,7 @@ main(int argc, char* argv[])
 #ifdef __mips__
 	// Marker of the M5 gate of the SGI Indy port (indy-plan.md): the first
 	// userland program runs.
-	debug_printf("haiku: m5 userland\n");
+	debug_printf("muse: m5 userland\n");
 #endif
 
 	status_t status;

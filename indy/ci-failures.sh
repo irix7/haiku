@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Shows why jobs of the bootstrap workflow failed (the workflow of
-# github.com/irix7/haikuports.cross, see indy-plan.md section 1.5).
+# github.com/irix7/museports.cross, see indy-plan.md section 1.5).
 #
 # Usage: indy/ci-failures.sh [RUN_ID]
 #   without RUN_ID: the latest run of the workflow
@@ -10,12 +10,12 @@
 # indy/toolchain/port-errors.sh. The whole logs stay in DIR/ARTIFACT.
 #
 # Environment:
-#   REPO  repository of the workflow (default irix7/haikuports.cross)
+#   REPO  repository of the workflow (default irix7/museports.cross)
 #   DIR   where the artifacts go (default generated.mips/ci-RUN_ID)
 set -euo pipefail
 
 TOP="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-REPO="${REPO:-irix7/haikuports.cross}"
+REPO="${REPO:-irix7/museports.cross}"
 RUN="${1:-$(gh run list -R "$REPO" --workflow bootstrap.yaml --limit 1 \
 	--json databaseId -q '.[0].databaseId')}"
 DIR="${DIR:-$TOP/generated.mips/ci-$RUN}"

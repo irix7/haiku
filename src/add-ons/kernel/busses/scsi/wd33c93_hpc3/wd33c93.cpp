@@ -482,7 +482,7 @@ path_inquiry(scsi_sim_cookie cookie, scsi_path_inquiry* info)
 	info->hba_queue_size = 1;
 	memset(info->vuhba_flags, 0, sizeof(info->vuhba_flags));
 
-	strlcpy(info->sim_vid, "Haiku", SCSI_SIM_ID);
+	strlcpy(info->sim_vid, "Muse", SCSI_SIM_ID);
 	strlcpy(info->hba_vid, "SGI", SCSI_HBA_ID);
 	strlcpy(info->sim_version, "1.0", SCSI_VERS);
 	strlcpy(info->hba_version, "1.0", SCSI_VERS);

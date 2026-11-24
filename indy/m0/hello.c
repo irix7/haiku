@@ -218,7 +218,7 @@ rex3_test(void)
 	upload_64(384, 384, 253, 64);
 	wait_idle();
 
-	put_string("haiku: m0 rex3 done\r\n");
+	put_string("muse: m0 rex3 done\r\n");
 }
 
 #endif	/* REX3_TEST */
@@ -227,7 +227,7 @@ rex3_test(void)
 void
 hello_main(void)
 {
-	put_string("haiku: m0 alive\r\n");
+	put_string("muse: m0 alive\r\n");
 
 #ifdef REX3_TEST
 	rex3_test();

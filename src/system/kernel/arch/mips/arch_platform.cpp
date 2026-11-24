@@ -28,6 +28,6 @@ status_t
 arch_platform_init_post_thread(struct kernel_args* args)
 {
 	// Gate marker of milestone M3.
-	dprintf("haiku: m3 threads ok\n");
+	dprintf("muse: m3 threads ok\n");
 	return B_OK;
 }

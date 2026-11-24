@@ -1,61 +1,48 @@
-Haiku
-=======================
-**[Homepage](https://www.haiku-os.org/)
-| [Mailing Lists](https://www.haiku-os.org/community/ml)
-| [IRC Channels](https://www.haiku-os.org/community/irc)
-| [Issue Tracker](https://dev.haiku-os.org/)
-| [API docs](https://api.haiku-os.org)**
+Muse
+====
 
-Haiku is an open-source operating system that specifically targets personal
-computing. Inspired by the BeOS, Haiku is fast, simple to use, easy to learn
-and yet very powerful.
+Muse is an operating system for the SGI Indy (IP24, R4600, big-endian mips
+n32). It is a fork of [Haiku](https://www.haiku-os.org/), based on haiku/haiku
+8bf39ccf93.
 
-Goals
-------------
- * Sensible defaults with minimal configuration required.
- * Clean, clear, concise code.
- * Unified desktop environment.
+Muse is not affiliated with Haiku, Inc. and not endorsed by it. Haiku and the
+HAIKU logo are registered trademarks of Haiku, Inc. The name appears in this
+tree where it identifies the upstream project, its copyright, or a technical
+interface that programs depend on: the target triple `mips64-unknown-haiku`,
+package names such as `haiku.hpkg`, `uname -s`, the `__HAIKU__` macro and the
+`B_HAIKU_*` API names.
 
-Trying Haiku
----------------
-Haiku provides pre-built [nightly images](http://download.haiku-os.org/) and
-[release images](https://www.haiku-os.org/get-haiku). Haiku is compatible
-with a large variety of hardware, but in case you don't want to "take the
-plunge" and install Haiku on bare metal, you can install it on a virtual
-machine (VM) instead. If you've never used a VM before, you can follow one of
-the ["Emulating Haiku"](https://www.haiku-os.org/guides/virtualizing/) guides.
+State
+-----
+On the iris emulator the system boots from a SCSI disk image to the Tracker
+desktop on the Newport display (1280 x 1024, 8 bit colour index), with PS/2
+keyboard and mouse. It has not run on a physical Indy. `indy-plan.md` section
+1 holds the status of every milestone.
 
-Compiling Haiku
----------------
-See `ReadMe.Compiling`.
+Building
+--------
+`indy-plan.md` section 2 describes the workspace. The short form:
+
+    nix develop -c ./indy/toolchain/build.sh binutils
+    nix develop -c ./indy/toolchain/build.sh gcc
+    ./indy/gate-m5.sh
+
+`gate-m5.sh` builds the netboot kernel and the bootstrap image, boots them on
+iris and waits for `muse: m5 userland` on the serial console.
+
+Source layout
+-------------
+The tree keeps the layout of Haiku. The files of the port are listed in
+`indy-plan.md` section 5. `ReadMe.Compiling.md` is the upstream build guide
+and describes the other architectures.
 
 Contributing
--------------------
-Haiku is a meritocratic open source project with a large variety of tasks. Even
-if you can't write code, *you can still help*! Haiku needs designers,
-(technical) writers, translators, testers... [Get involved](https://www.haiku-os.org/community/getting-involved/)
-and help out!
+------------
+Changes go to this repository. Upstream Haiku does not accept AI-generated
+code, so nothing from this fork is sent to haiku/haiku, its Gerrit or its
+issue tracker.
 
-### Contributing code
-If you're submitting a patch to us, please make sure you're following the
-[patch submitting guidelines](https://dev.haiku-os.org/wiki/CodingGuidelines/SubmittingPatches).
-
-If you're having trouble finding something in the source tree, you can use
-one of our web-based source code browsers:
-
- * https://grok.nikisoft.one/opengrok/ (OpenGrok, provided by Niklas Poslovski)
- * https://git.haiku-os.org/ (git, provided by Haiku, Inc.)
-
-### Contributing documentation
-The main piece of documentation that still needs work are the API docs (found
-in the tree at `docs/user`). Just find an undocumented class, write
-documentation for it, and [submit a patch](https://dev.haiku-os.org/wiki/CodingGuidelines/SubmittingPatches).
-
-### Contributing translations
-See [wiki:i18n](https://dev.haiku-os.org/wiki/i18n).
-
-### Contributing software ports
-See [HaikuPorts](https://github.com/haikuports/haikuports/).
-
-### Contributing to our infrastructure
-See [Infrastructure](https://github.com/haiku/infrastructure/).
+Licence
+-------
+MIT, as upstream. See `License.md`. The copyright of the Haiku code belongs to
+Haiku, Inc. or to the authors named in the source files.

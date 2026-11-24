@@ -726,7 +726,7 @@ ConfirmChangeIfWellKnownDirectory(const BEntry* entry, DestructiveAction action,
 
 	struct utsname name;
 	if (uname(&name) == -1)
-		warning.ReplaceFirst("%osName", "Haiku");
+		warning.ReplaceFirst("%osName", "Muse");
 	else
 		warning.ReplaceFirst("%osName", name.sysname);
 

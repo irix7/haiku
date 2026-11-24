@@ -13,7 +13,7 @@
 set -euo pipefail
 
 TOP="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-MARKER="${1:-haiku: m5 userland}"
+MARKER="${1:-muse: m5 userland}"
 TIMEOUT="${2:-180}"
 BOOTSTRAP="${BOOTSTRAP:-/mnt/europa/haiku-toolchain/bootstrap}"
 IMAGE_SIZE="${IMAGE_SIZE:-600}"

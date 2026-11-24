@@ -1,6 +1,7 @@
-# Haiku on the SGI Indy
+# Muse on the SGI Indy
 
-Plan for porting Haiku to the SGI Indy (IP24) as a new architecture named `mips`.
+Muse is this fork of Haiku for the SGI Indy (IP24). This is the plan for porting
+Haiku to the Indy as a new architecture named `mips`.
 The target machine is an Indy with an R4600 CPU, and every decision in section 4
 is chosen for that CPU. The stock PROM netboots the loader with
 `boot -f bootp()haiku`. The base is haiku/haiku 8bf39ccf93.
@@ -44,19 +45,26 @@ Rules:
 11. Match the style of the file you edit: tabs, Haiku naming, 80 columns.
 12. Keep this file current: section 1 after every task, section 9 for every
     trap found.
+13. The system is named Muse (since 2026-11-25). Haiku is a trademark of
+    Haiku, Inc. Text that a user sees says Muse: windows, menus, boot
+    messages, the volume label, gate markers, documents. "Haiku" stays where
+    it names the upstream project, a copyright holder, or a technical
+    interface: the triple `mips64-unknown-haiku`, package names
+    (`haiku.hpkg`), `uname -s`, `__HAIKU__`, `B_HAIKU_*`, file and jam target
+    names. Do not use the Haiku logo.
 
 ## 1. Status
 
 | Milestone | Gate marker | State |
 |---|---|---|
-| M0 gate rig | `haiku: m0 alive` on both gates | Done 2026-11-18. `nix develop -c jam -v` prints `Jam 2.5-haiku-20211029`. `make -C indy gate-m0` and `gate-gfx-m0` print `PASS`. `elf2ecoff.py` output equals the Redox tool's byte for byte. |
+| M0 gate rig | `muse: m0 alive` on both gates | Done 2026-11-18. `nix develop -c jam -v` prints `Jam 2.5-haiku-20211029`. `make -C indy gate-m0` and `gate-gfx-m0` print `PASS`. `elf2ecoff.py` output equals the Redox tool's byte for byte. |
 | M1 toolchain and build wiring | `configure` accepts `mips-unknown-haiku-gcc` | Done 2026-11-18. binutils 2.47 and GCC 17 are installed in `cross-tools-mips`, with libgcc for both multilibs, libstdc++, and the kernel libraries of `build.sh kernel-libs`. `seed.sh` fills the seed directory. `../configure --cross-tools-prefix ...` prints `Configured successfully!`. |
 | M2 loader | `haiku_loader: archive mounted` | Done 2026-11-18 on iris. The serial gate shows `haiku_loader: start`, the Count rate (33.0 MHz), `RAM: 64 MB`, `haiku_loader: archive mounted`, `haiku_loader: kseg2 ok`, then the kernel's first line. |
-| M3 kernel core | `haiku: m3 threads ok` | Gate passes on iris 2026-11-18: `./indy/gate.sh generated.mips/haiku-indy-netboot "haiku: m3 threads ok"`. User mode, FPU and signal code have not run. |
-| M4 modules, interrupts, storage | `haiku: m4 boot volume mounted` | M4.1 to M4.4 work on iris 2026-11-18: add-ons load, `wd33c93: controller ready`, the disk is published as `disk/scsi/0/1/0/raw`, and with a BFS image the log shows `bfs: mounted "Haiku"` and `Mounted boot partition`. The boot then stops at `error starting "/boot/system/servers/launch_daemon"`, because the volume is empty. M4.5 (interrupts, DMA) not written. |
-| M5 userland | `haiku: m5 userland` | Arch files written (M5.1 to M5.3). `libroot.so` and `runtime_loader` link (section 1.4). M5.4 done 2026-11-24 (section 1.3). M5.5: every package but `gcc_bootstrap` builds in CI (section 1.5). M5.6 done 2026-11-24: `indy/gate-m5.sh` passes (section 1.6). |
-| M6 desktop | `haiku: m6 desktop` plus screenshot | M6.1 done on iris 2026-11-18 (`make -C indy gate-rex3`, both gradients drawn). Driver, accelerant, app_server hook, isa and ps2 changes written, not run. |
-| M7 network | `haiku: m7 ping ok` | The Seeq driver works on iris 2026-11-18: the kernel configures the interface and mounts its boot volume from a RemoteDisk server (D10a). DHCP and ping from userland not run. |
+| M3 kernel core | `muse: m3 threads ok` | Gate passes on iris 2026-11-18: `./indy/gate.sh generated.mips/haiku-indy-netboot "muse: m3 threads ok"`. User mode, FPU and signal code have not run. |
+| M4 modules, interrupts, storage | `muse: m4 boot volume mounted` | M4.1 to M4.4 work on iris 2026-11-18: add-ons load, `wd33c93: controller ready`, the disk is published as `disk/scsi/0/1/0/raw`, and with a BFS image the log shows `bfs: mounted "Haiku"` and `Mounted boot partition`. The boot then stops at `error starting "/boot/system/servers/launch_daemon"`, because the volume is empty. M4.5 (interrupts, DMA) not written. |
+| M5 userland | `muse: m5 userland` | Arch files written (M5.1 to M5.3). `libroot.so` and `runtime_loader` link (section 1.4). M5.4 done 2026-11-24 (section 1.3). M5.5: every package but `gcc_bootstrap` builds in CI (section 1.5). M5.6 done 2026-11-24: `indy/gate-m5.sh` passes (section 1.6). |
+| M6 desktop | `muse: m6 desktop` plus screenshot | M6.1 done on iris 2026-11-18 (`make -C indy gate-rex3`, both gradients drawn). Driver, accelerant, app_server hook, isa and ps2 changes written, not run. |
+| M7 network | `muse: m7 ping ok` | The Seeq driver works on iris 2026-11-18: the kernel configures the interface and mounts its boot volume from a RemoteDisk server (D10a). DHCP and ping from userland not run. |
 | M8 physical Indy | same markers on the machine's serial port | Not started |
 | M9 performance on the R4600 | measured gains recorded per task | Not started |
 
@@ -264,9 +272,9 @@ Setup that works:
 - Clones under `/mnt/europa/haiku-toolchain/ports`: haikuporter (c078118),
   haikuports.cross (a6e2c64), haikuports (569482e, depth 1): the upstream
   commits the work started from. Since 2026-11-24 the clones are on branch
-  `indy-mips` of the forks `github.com/irix7/haikuporter` and
-  `irix7/haikuports.cross` (remote `irix7`), where that branch is the default
-  branch, as it is in `irix7/haiku`. Commit recipe changes there. The GCC and
+  `indy-mips` of the forks `github.com/irix7/museporter` and
+  `irix7/museports.cross` (remote `irix7`), where that branch is the default
+  branch, as it is in `irix7/muse`. Commit recipe changes there. The GCC and
   binutils worktrees are on branch `haiku-mips` of `irix7/gcc` and
   `irix7/binutils-gdb`, committed and pushed.
 - haikuporter: `mips` with triplet `mips-unknown-haiku` in `RecipeTypes.py`.
@@ -301,7 +309,7 @@ headers in `gcc_syslibs_devel` (`syslibs.sh`), `OUTPUT` and `JAM_ARGS` in
 `indy/jam.sh`.
 
 CI (added 2026-11-24): `.github/workflows/bootstrap.yaml` of
-`irix7/haikuports.cross` builds mips only, from the irix7 forks. Jobs:
+`irix7/museports.cross` builds mips only, from the irix7 forks. Jobs:
 `toolchain` (binutils, GCC, seed, syslibs, cached by the commits of both
 forks and the hash of `indy/toolchain`; then the stage 1 sysroot), `ports`
 (one job per port of the matrix, with `port.sh`), `boot` (netboot image, then
@@ -316,14 +324,14 @@ forks and the hash of `indy/toolchain`; then the stage 1 sysroot), `ports`
 - Since 2026-11-24 the matrix holds every port of `HaikuPortsCross/mips`
   and the ports are fixed from the CI results (owner's decision): read the
   failures with `indy/ci-failures.sh`, push recipe fixes to
-  `irix7/haikuports.cross`, start a run. Local port builds are for
+  `irix7/museports.cross`, start a run. Local port builds are for
   reproducing a single failure only.
 - Failures: `indy/ci-failures.sh [RUN_ID]` lists the failed jobs of a run and
   prints each job's `errors.txt` (first errors and log end, written by
   `indy/toolchain/port-errors.sh` for ports). The same script reads a local
   log: `indy/toolchain/port-errors.sh /mnt/europa/haiku-toolchain/build/port-NAME.log`.
 - Runs start by manual dispatch (`gh workflow run bootstrap.yaml -R
-  irix7/haikuports.cross --ref indy-mips`). Pushes have not started a run so
+  irix7/museports.cross --ref indy-mips`). Pushes have not started a run so
   far; Actions may need enabling on the fork's Actions tab.
 - `indy/jam.sh` runs jam directly inside the devshell and on hosts without
   nix.
@@ -340,11 +348,11 @@ haikuporter removes `cross-tools-mips/sysroot` after each port it builds.
 
 Result 2026-11-24: run 45305747467 of the bootstrap workflow ended with all
 26 jobs successful (`toolchain`, `boot`, 24 ports). The release
-`mips-packages` of `irix7/haikuports.cross` holds 40 packages: every package
+`mips-packages` of `irix7/museports.cross` holds 40 packages: every package
 of `HaikuPortsCross/mips` except `gcc_bootstrap`. The `boot` job reached
 `Mounted boot partition` in IRIS 0.1.13.
 
-What the ports needed (all in `irix7/haikuports.cross`, branch `indy-mips`):
+What the ports needed (all in `irix7/museports.cross`, branch `indy-mips`):
 
 | Port | Change |
 |---|---|
@@ -374,7 +382,7 @@ Open:
 `indy/gate-m5.sh` (`make -C indy gate-m5`) builds `haiku-netboot-indy` and the
 600 MB bootstrap image in `/mnt/europa/haiku-toolchain/bootstrap`, boots the
 netboot kernel on iris with 128 MB and the image as SCSI disk 1
-(`BOOT_ARGS=disk`), and waits for `haiku: m5 userland`. `launch_daemon` prints
+(`BOOT_ARGS=disk`), and waits for `muse: m5 userland`. `launch_daemon` prints
 the marker with `debug_printf()` at the start of `main()`. The gate passed on
 2026-11-24.
 
@@ -480,7 +488,7 @@ writable, the kernel creates a swap file of 7133 pages, no
 
 ```
 RAM=128 DISK=generated.mips/m5.image BOOT_ARGS=disk SETTLE=200 \
-    indy/gate-gfx.sh $BOOTSTRAP/haiku-indy-netboot "haiku: m5 userland" desk.png 240
+    indy/gate-gfx.sh $BOOTSTRAP/haiku-indy-netboot "muse: m5 userland" desk.png 240
 ```
 
 200 s after the marker the screenshot shows the Tracker desktop (`Haiku`,
@@ -519,6 +527,34 @@ Keyboard and mouse (M6.5). Two faults:
 
 Result: `ps2: keyboard found`, `Extended PS/2 mouse found`, and `ptr move` of
 the iris monitor moves the cursor on the desktop.
+
+
+### 1.9 The fork is named Muse, 2026-11-25
+
+Rule 13 of section 0 states what is renamed. Done:
+
+- Repositories: `irix7/muse` (was `irix7/haiku`), `irix7/museports.cross`,
+  `irix7/museporter`. The old URLs redirect. Local directory names are
+  unchanged.
+- Text: boot loader, kernel revision line, Deskbar (`About Muse`), About
+  window (Muse heading, a sentence on the origin, the Haiku copyright block
+  unchanged), first boot prompt, Installer, login window, Tracker and
+  mount_server alerts, package summaries, vendor and packager, `ReadMe.md`.
+- The volume label is `Muse`. The kernel prefers a boot volume named `Muse`,
+  then `Haiku`.
+- Gate markers are `muse: mN ...`.
+- The build uses `HAIKU_DISTRO_COMPATIBILITY` `default`: the boot splash is
+  `images-sans-tm.h` and the About window shows no Haiku logo.
+
+Open:
+
+- The Deskbar still shows the Haiku leaf. Muse needs its own artwork for the
+  Deskbar, the boot splash and the About window.
+- About 190 strings still say Haiku: translator and driver descriptions,
+  command line help, catalog files of other languages, the user guide.
+- `src/data/repository_infos/haiku` points at the package repository of
+  haiku-os.org, which has no mips packages.
+- `uname -s` prints `Haiku`: `config.guess` maps it to the `*-haiku` triple.
 
 ## 2. Workspace and environment
 
@@ -610,7 +646,7 @@ Verified on iris, which runs the SGI PROM image. Transcript of a passing run:
 Setting $netaddr to 192.168.0.2 (from server iris)
 Obtaining haiku from server iris
          64   +68   +16396 entry: 0x88040000
-haiku: m0 alive
+muse: m0 alive
 ```
 
 - The PROM loads ECOFF only. It prints text, data and bss sizes and the entry.
@@ -1621,7 +1657,7 @@ Flags that worked: `-mabi=n32 -march=mips3 -mtune=r4600 -EB -msoft-float
 `OUTPUT_FORMAT("elf32-ntradbigmips")`, base 0x88040000, `.text` with
 `*(.text.start)` first, and a 16 KB stack inside `.bss`. `start.S` loads
 `$sp` with `lui`/`addiu` and calls `hello_main` with `jal`. `hello_main` prints
-`haiku: m0 alive\r\n` with the polled output of section 3.5 and loops forever.
+`muse: m0 alive\r\n` with the polled output of section 3.5 and loops forever.
 Done when: `readelf -h` shows ELF32, big endian, entry 0x88040000, flags
 containing `abi2, mips3`.
 
@@ -1867,7 +1903,7 @@ Done when: `grep -rn "panic(\"arch_" src/system/kernel/arch/mips` lists only
 user-mode functions, and the boot log shows the RTC date.
 
 **M3.8 Gate.**
-Done when: the serial gate shows `haiku: m3 threads ok`, printed by a temporary
+Done when: the serial gate shows `muse: m3 threads ok`, printed by a temporary
 test in `arch_platform_init_post_thread` after M3.4 and M3.5 pass, and the
 kernel then stops in the kernel debugger for lack of a boot volume.
 
@@ -1906,7 +1942,7 @@ Do: add `scsi`, `scsi_disk`, `wd33c93_hpc3`, `indy`, `bfs`, `packagefs` and the
 `intel` partitioning system to the netboot archive for mips. Create an empty BFS
 image with the build's `bfs_shell`.
 Done when: the gate with that image shows the BFS volume mounted, and prints
-`haiku: m4 boot volume mounted` from a temporary line in the boot path.
+`muse: m4 boot volume mounted` from a temporary line in the boot path.
 
 **M4.5 SCSI interrupts and DMA.**
 Do: switch command completion to the SCSI 0 interrupt (local 0 bit 1). Add HPC3
@@ -1973,7 +2009,7 @@ Done when: the packages named in `HaikuPortsCross/mips` exist as `.hpkg` files.
 
 **M5.6 Image.**
 Do: build `haiku.hpkg` and a raw image with the minimum profile. Add a launch
-job or boot script line that writes `haiku: m5 userland` to `/dev/dprintf`.
+job or boot script line that writes `muse: m5 userland` to `/dev/dprintf`.
 Done when: the serial gate with that image shows the marker.
 
 ### M6. Desktop
@@ -2017,7 +2053,7 @@ Done when: `ps2 type` through the iris monitor produces text in a Terminal
 window in the screenshot, and `ptr move` moves the cursor.
 
 **M6.6 Gate.**
-Done when: the graphics gate shows `haiku: m6 desktop` (written by a boot script
+Done when: the graphics gate shows `muse: m6 desktop` (written by a boot script
 after Deskbar starts) and the screenshot shows Deskbar and a Terminal window
 with correct colours.
 
@@ -2028,7 +2064,7 @@ with correct colours.
 `/dev/net/seeq8003/0`, MAC from NVRAM, 8 receive descriptors, the acknowledge
 order of section 3.6, cache maintenance on every buffer.
 **M7.2 Gate.** Done when: the image gets a DHCP lease from iris, pings
-192.168.0.1, and a boot script writes `haiku: m7 ping ok`.
+192.168.0.1, and a boot script writes `muse: m7 ping ok`.
 
 ### M8. Physical Indy
 

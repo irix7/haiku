@@ -17,13 +17,13 @@ m0:
 	$(MAKE) -C m0 OUT=../$(M0)
 
 gate-m0: m0
-	./gate.sh $(M0)/hello.ecoff "haiku: m0 alive" 60
+	./gate.sh $(M0)/hello.ecoff "muse: m0 alive" 60
 
 gate-gfx-m0: m0
-	./gate-gfx.sh $(M0)/hello.ecoff "haiku: m0 alive" $(OUT)/m0-gfx.png 120
+	./gate-gfx.sh $(M0)/hello.ecoff "muse: m0 alive" $(OUT)/m0-gfx.png 120
 
 gate-rex3: m0
-	./gate-gfx.sh $(M0)/rex3.ecoff "haiku: m0 rex3 done" $(OUT)/m0-rex3.png 120
+	./gate-gfx.sh $(M0)/rex3.ecoff "muse: m0 rex3 done" $(OUT)/m0-rex3.png 120
 
 gate-gdb:
 	./gate-gdb.sh serial

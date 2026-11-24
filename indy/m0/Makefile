@@ -1,8 +1,8 @@
 # M0 test images for the SGI Indy.
 #
-#   hello.ecoff   prints "haiku: m0 alive" on the serial console
+#   hello.ecoff   prints "muse: m0 alive" on the serial console
 #   rex3.ecoff    the same, then draws through REX3 and prints
-#                 "haiku: m0 rex3 done"
+#                 "muse: m0 rex3 done"
 
 TOOLCHAIN ?= /mnt/europa/toolchains/mips64-n32--uclibc--stable-2026.08-1/bin/mips64-buildroot-linux-uclibc-
 MIPS_CC ?= $(TOOLCHAIN)gcc

@@ -1012,7 +1012,7 @@ AutoMounter::_SuggestMountFlags(const BPartition* partition, uint32* _flags)
 		string << B_TRANSLATE("The file system on this volume is not the "
 			"Be file system. It is recommended to mount it in read-only "
 			"mode, to prevent unintentional data loss because of bugs "
-			"in Haiku.");
+			"in Muse.");
 
 		BAlert* alert = new BAlert(B_TRANSLATE("Mount warning"),
 			string.String(), B_TRANSLATE("Mount read/write"),

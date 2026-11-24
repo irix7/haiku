@@ -4,8 +4,8 @@ architecture	any
 summary			"The Makefile engine"
 description 	"A simple generic makefile-engine and Makefile template."
 
-packager		"The Haiku build system"
-vendor			"Haiku Project"
+packager		"The Muse build system"
+vendor			"Muse Project"
 
 copyrights		"? Be Inc. 2001-2026 Haiku, Inc."
 licenses		MIT
