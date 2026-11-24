@@ -47,6 +47,8 @@ static uint32 sRegionCount;
 static phys_addr_t sRamEnd;
 static phys_addr_t sPhysicalNext;
 	// Regions and page tables are allocated downwards from here.
+static phys_addr_t sPhysicalNextLow = LOADER_KERNEL_BASE - KSEG0_BASE;
+	// When nothing is left above the kernel image: downwards from here.
 static addr_t sVirtualNext = KERNEL_VM_BASE;
 static addr_t sHeapNext = LOADER_SCRATCH_BASE;
 static addr_t sKernelImageEnd;
@@ -59,13 +61,19 @@ static void*
 allocate_physical(size_t size)
 {
 	size = ROUNDUP(size, B_PAGE_SIZE);
-	if (sPhysicalNext - size < LOADER_SCRATCH_TOP - KSEG0_BASE) {
+	if (sPhysicalNext - size
+			>= LOADER_KERNEL_BASE + LOADER_KERNEL_SIZE - KSEG0_BASE) {
+		sPhysicalNext -= size;
+		return mips_physical_to_kseg0(sPhysicalNext);
+	}
+
+	if (sPhysicalNextLow - size < LOADER_SCRATCH_TOP - KSEG0_BASE) {
 		panic("out of memory: %" B_PRIuSIZE " bytes requested", size);
 		return NULL;
 	}
 
-	sPhysicalNext -= size;
-	return mips_physical_to_kseg0(sPhysicalNext);
+	sPhysicalNextLow -= size;
+	return mips_physical_to_kseg0(sPhysicalNextLow);
 }
 
 
@@ -280,7 +288,7 @@ mmu_init()
 
 	if (sRamEnd - INDY_RAM_BASE < LOADER_MINIMUM_RAM) {
 		panic("%" B_PRIu64 " MB of contiguous RAM found at %#x, at least "
-			"64 MB are required",
+			"32 MB are required",
 			(uint64)(sRamEnd - INDY_RAM_BASE) / (1024 * 1024), INDY_RAM_BASE);
 	}
 
@@ -335,12 +343,17 @@ mmu_init_for_kernel()
 			sKernelImageEnd - LOADER_KERNEL_BASE);
 	}
 	insert_physical_allocated_range(sPhysicalNext, sRamEnd - sPhysicalNext);
+	if (sPhysicalNextLow != LOADER_KERNEL_BASE - KSEG0_BASE) {
+		insert_physical_allocated_range(sPhysicalNextLow,
+			LOADER_KERNEL_BASE - KSEG0_BASE - sPhysicalNextLow);
+	}
 
 	dprintf("kernel stack at %#" B_PRIx64 ", kseg2 mapped up to %#"
 		B_PRIxADDR ", page directory at %p\n",
 		gKernelArgs.cpu_kstack[0].start, sVirtualNext, sPageDirectory);
 	dprintf("loader allocations: %" B_PRIu64 " kB at the end of RAM, kernel "
-		"image %" B_PRIuADDR " kB\n", (uint64)(sRamEnd - sPhysicalNext) / 1024,
+		"image %" B_PRIuADDR " kB\n", (uint64)(sRamEnd - sPhysicalNext
+			+ LOADER_KERNEL_BASE - KSEG0_BASE - sPhysicalNextLow) / 1024,
 		sKernelImageEnd != 0 ? (sKernelImageEnd - LOADER_KERNEL_BASE) / 1024 : 0);
 }
 

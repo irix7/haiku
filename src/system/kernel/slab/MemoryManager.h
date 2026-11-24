@@ -25,10 +25,18 @@ struct VMArea;
 
 
 #define SLAB_CHUNK_SIZE_SMALL	B_PAGE_SIZE
-#define SLAB_CHUNK_SIZE_MEDIUM	(16 * B_PAGE_SIZE)
-#define SLAB_CHUNK_SIZE_LARGE	(128 * B_PAGE_SIZE)
-#define SLAB_AREA_SIZE			(2048 * B_PAGE_SIZE)
+#if B_PAGE_SIZE == 16384
+	// The byte sizes of the 4 KB design. In pages they would be four times
+	// as large, and the first area (32 MB) is mapped in full at boot.
+#	define SLAB_CHUNK_SIZE_MEDIUM	(4 * B_PAGE_SIZE)
+#	define SLAB_CHUNK_SIZE_LARGE	(32 * B_PAGE_SIZE)
+#	define SLAB_AREA_SIZE			(512 * B_PAGE_SIZE)
+#else
+#	define SLAB_CHUNK_SIZE_MEDIUM	(16 * B_PAGE_SIZE)
+#	define SLAB_CHUNK_SIZE_LARGE	(128 * B_PAGE_SIZE)
+#	define SLAB_AREA_SIZE			(2048 * B_PAGE_SIZE)
 	// TODO: These sizes have been chosen with 4 KB pages in mind.
+#endif
 #define SLAB_AREA_STRUCT_OFFSET	B_PAGE_SIZE
 	// The offset from the start of the area to the Area structure. This space
 	// is not mapped and will trip code writing beyond the previous area's
