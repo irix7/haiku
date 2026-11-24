@@ -423,11 +423,8 @@ Open:
   `sw` and `sd`. An unaligned `lwc1`, `ldc1`, `swc1` or `sdc1` still raises
   SIGBUS. Each emulated access costs an exception: `BMessage` is the first
   candidate for packed accessors (M9).
-- After the marker `launch_daemon` starts `registrar`, `mount_server`,
-  `net_server`, `syslog_daemon`, `debug_server`, `app_server` and `Tracker`.
-  Nothing checks them. The gate runs headless, so `app_server` finds no
-  Newport board. Programs of the port packages (`bash`) need the packages of
-  the CI run that follows the linker fix.
+- After the marker `launch_daemon` starts the servers, `Tracker` and
+  `Deskbar` (section 1.8). The M5 gate does not check them.
 - Memory: each team commits a heap area of about 8.5 MB. With the swap file
   of section 1.7 the commitments fit in 128 MB. The cause of the 8.5 MB is not
   measured yet.
@@ -475,6 +472,38 @@ Result on iris with 128 MB, 90 s after the M5 marker: the boot volume is
 writable, the kernel creates a swap file of 7133 pages, no
 `low resource memory` message appears, and `Tracker`, `Deskbar` and `python3`
 (from a port package) run.
+
+
+### 1.8 First desktop on the Newport, 2026-11-25
+
+`indy/gate-gfx.sh` boots the bootstrap image with the display:
+
+```
+RAM=128 DISK=generated.mips/m5.image BOOT_ARGS=disk SETTLE=200 \
+    indy/gate-gfx.sh $BOOTSTRAP/haiku-indy-netboot "haiku: m5 userland" desk.png 240
+```
+
+200 s after the marker the screenshot shows the Tracker desktop (`Haiku`,
+`home`, `Trash`), the Deskbar with nine teams and the cursor, in 1280 x 1024
+with 8 bit colour index. `gate-gfx.sh` takes `BOOT_ARGS`, `CONFIG_TOP` and
+`THEN` like `gate.sh`.
+
+One fault stood in the way: `HWInterface::_CopyToFront()` passed `x` and `y`
+to `_FrontBufferUpdated()` after its loops had advanced them, so the Newport
+accelerant got an empty rectangle and copied nothing to the screen.
+
+Open:
+
+- `app_server` prints `Finding best mode for 1024x768 failed` and takes the
+  only mode of the accelerant, 1280 x 1024. The `Use 1688x1066` line prints
+  the total timing.
+- `ps2: keyboard reset failed, status 0x80000009`: no keyboard and no mouse
+  device under iris. Input is the next task.
+- `package_daemon` reports every package as `not installable` on the first
+  boot.
+- The screenshot has a column of PROM pixels at the right edge (x = 1280 and
+  1281 of a 1282 pixel wide image).
+- iris does not exit on SIGTERM after these runs; the gate needs `kill -9`.
 
 ## 2. Workspace and environment
 

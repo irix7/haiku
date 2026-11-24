@@ -10,6 +10,8 @@
 #
 # Environment: as indy/gate.sh. The default WORK is generated.mips/gate-gfx and
 # the default MONITOR_PORT is 18932.
+#   BOOT_ARGS       arguments for the kernel, for example "disk"
+#   CONFIG_TOP, THEN  as indy/gate.sh; THEN runs after the screenshot
 #   SETTLE          seconds to wait after the marker before the screenshot
 #                   (default 2)
 set -euo pipefail
@@ -47,6 +49,7 @@ cp "$IMAGE" "$WORK/tftp/haiku"
 banks = [$RAM, 0, 0, 0]
 no_audio = true
 nvram = "$WORK/nvram.bin"
+${CONFIG_TOP:-}
 
 [machine]
 profile = "indy_ip24"
@@ -104,12 +107,16 @@ mon "ps2 esc"
 mon "screen wait 1500 40000"
 mon "ps2 type 5"
 mon "screen wait 1500 20000"
-mon "ps2 type boot -f bootp()haiku"
+mon "ps2 type boot -f bootp()haiku${BOOT_ARGS:+ $BOOT_ARGS}"
 mon "ps2 enter"
 
 ic serial-wait "$MARKER" --timeout "$TIMEOUT"
 sleep "$SETTLE"
 ic screenshot "$SCREENSHOT"
+
+if [ -n "${THEN:-}" ]; then
+	WORK="$WORK" bash -c "$THEN"
+fi
 
 echo "gate-gfx: PASS  marker \"$MARKER\" seen; screenshot $SCREENSHOT;" \
 	"logs in $WORK"
