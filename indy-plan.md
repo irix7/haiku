@@ -257,6 +257,50 @@ What the first build of libroot changed:
 Neither binary has run. The kernel has to apply the 211 relocations of
 `runtime_loader` when it loads it (M5.1, not exercised).
 
+### 1.5 M5.5 third-party packages, in progress 2026-11-24
+
+Setup that works:
+
+- Clones under `/mnt/europa/haiku-toolchain/ports`: haikuporter (c078118),
+  haikuports.cross (a6e2c64), haikuports (569482e, depth 1). Their changes
+  are `indy/toolchain/patches/haikuporter-mips.patch` and
+  `haikuports-cross-mips.patch`; nothing is committed in the clones.
+- haikuporter: `mips` with triplet `mips-unknown-haiku` in `RecipeTypes.py`.
+  Two fixes for the NixOS host: git gets `PATH` (`Source.py`), and the build
+  shells keep `PATH` (`Utils.py` passes `NOSYSBASHRC`, which `port.sh` sets).
+- haikuports.cross: `mips` in `ARCHITECTURES` of the recipes that list
+  architectures by name. Recipes with `all` need no change.
+- The bootstrap build directory is `/mnt/europa/haiku-toolchain/bootstrap`,
+  configured with `--cross-tools-prefix` and `--bootstrap`. jam needs the
+  profile to select the bootstrap build type:
+  `OUTPUT=/mnt/europa/haiku-toolchain/bootstrap ./indy/jam.sh @bootstrap-raw build TARGET`.
+- `BOOTSTRAP_OUTPUT=... indy/toolchain/syslibs.sh generated.mips package`
+  puts `gcc_bootstrap_syslibs` and `gcc_bootstrap_syslibs_devel` into the
+  repository's `packages` directory, so haikuporter does not build GCC. jam
+  extracts them to `bootstrap/build_packages`: delete that copy after
+  repackaging.
+- `haiku_cross_devel_sysroot_stage1_mips.hpkg` builds. This compiled and
+  linked libroot, libbsd and libnetwork for mips in the bootstrap tree.
+- `indy/toolchain/port.sh PORT...` runs haikuporter for the named ports.
+  jam's own rule builds the packages in the order of the repository file.
+
+Packages in
+`bootstrap/objects/haiku/mips/packaging/repositories/HaikuPortsCross-build/packages`
+on 2026-11-24: `ca_root_certificates`, `haikuporter`, `noto` (three
+packages), `zlib_bootstrap-1.3.2-1-mips.hpkg`, `zlib_bootstrap_devel` and the
+two GCC packages. `libz.so.1` needs only `libroot.so`.
+
+Changes in this tree: `HaikuPortsCross/mips` (zlib 1.3.2 and the GCC package
+versions), `CACHE_LINE_SIZE` 32 for mips in
+`src/libs/compat/freebsd_network/compat/sys/param.h`, the compiler's own
+headers in `gcc_syslibs_devel` (`syslibs.sh`), `OUTPUT` and `JAM_ARGS` in
+`indy/jam.sh`.
+
+Open: the other 20 stage 1 ports (logs in
+`/mnt/europa/haiku-toolchain/build/port-NAME.log`). `gcc_bootstrap` (the
+compiler that runs on Haiku) is not built. `binutils_bootstrap` 2.41 has no
+mips n32 Haiku target (the patch of M1.2 is for 2.47).
+
 ## 2. Workspace and environment
 
 | Path | Content |

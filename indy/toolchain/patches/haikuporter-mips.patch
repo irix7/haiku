@@ -1,0 +1,59 @@
+diff --git a/HaikuPorter/RecipeTypes.py b/HaikuPorter/RecipeTypes.py
+index 02e9e00..c595be9 100644
+--- a/HaikuPorter/RecipeTypes.py
++++ b/HaikuPorter/RecipeTypes.py
+@@ -12,6 +12,7 @@ class MachineArchitecture(str):
+ 	ARM = 'arm'
+ 	ARM64 = 'arm64'
+ 	M68K = 'm68k'
++	MIPS = 'mips'
+ 	PPC = 'ppc'
+ 	PPC64 = 'ppc64'
+ 	RISCV64 = 'riscv64'
+@@ -27,6 +28,7 @@ class MachineArchitecture(str):
+ 			Architectures.ARM,
+ 			Architectures.ARM64,
+ 			Architectures.M68K,
++			Architectures.MIPS,
+ 			Architectures.PPC,
+ 			Architectures.PPC64,
+ 			Architectures.RISCV64,
+@@ -44,6 +46,7 @@ class MachineArchitecture(str):
+ 			Architectures.ARM: 'arm-unknown-haiku',
+ 			Architectures.ARM64: 'aarch64-unknown-haiku',
+ 			Architectures.M68K: 'm68k-unknown-haiku',
++			Architectures.MIPS: 'mips-unknown-haiku',
+ 			Architectures.PPC: 'powerpc-apple-haiku',
+ 			Architectures.PPC64: 'powerpc64-unknown-haiku',
+ 			Architectures.RISCV64: 'riscv64-unknown-haiku',
+diff --git a/HaikuPorter/Source.py b/HaikuPorter/Source.py
+index 3c69ae8..b567c9c 100644
+--- a/HaikuPorter/Source.py
++++ b/HaikuPorter/Source.py
+@@ -100,6 +100,10 @@ class Source(object):
+ 			'GIT_AUTHOR_EMAIL': Configuration.getPackagerEmail(),
+ 			'GIT_AUTHOR_NAME': Configuration.getPackagerName().encode("utf-8"),
+ 		}
++		# Without PATH, git is found only in the default path (/usr/bin),
++		# where a NixOS host does not have it.
++		if 'PATH' in os.environ:
++			self.gitEnv['PATH'] = os.environ['PATH']
+ 
+ 	def fetch(self, port):
+ 		"""Fetch the source from one of the URIs given in the recipe.
+diff --git a/HaikuPorter/Utils.py b/HaikuPorter/Utils.py
+index 830e79b..feaf4cd 100644
+--- a/HaikuPorter/Utils.py
++++ b/HaikuPorter/Utils.py
+@@ -313,7 +313,10 @@ def filteredEnvironment():
+ 		'TERM': 'xterm',
+ 	}
+ 
+-	for key in ['LIBRARY_PATH', 'PATH']:
++	# The last three keep the bash of a NixOS host from reading /etc/bashrc
++	# and /etc/profile, which replace PATH.
++	for key in ['LIBRARY_PATH', 'PATH', 'NOSYSBASHRC', '__ETC_PROFILE_DONE',
++			'__NIXOS_SET_ENVIRONMENT_DONE']:
+ 		if key in os.environ:
+ 			env[key] = os.environ[key]
+ 

@@ -6,6 +6,11 @@
 #
 # Usage: indy/toolchain/syslibs.sh OUTPUT_DIR [all|package]
 #   package     skips the GCC build and packages what the last one installed
+#
+# Environment:
+#   BOOTSTRAP_OUTPUT  build directory configured with --bootstrap: the
+#                     gcc_bootstrap_syslibs packages are copied into its
+#                     HaikuPortsCross repository
 #   OUTPUT_DIR  the Haiku build directory (generated.mips): it provides the
 #               stub libroot and the "package" tool.
 #
@@ -103,7 +108,14 @@ for variant in kernel boot; do
 	done
 done
 cp -r "$installed/$TARGET/include/c++/$version" "$devel/develop/headers/c++"
-cp -r "$gccLib/include" "$devel/develop/headers/gcc/include"
+# The compiler's own headers (stddef.h, float.h) are installed with the
+# compiler, not with libgcc: they come from the cross tools.
+crossGccLib="$PREFIX/lib/gcc/$TARGET/$version"
+cp -r "$crossGccLib/include" "$devel/develop/headers/gcc/include"
+if [ -d "$crossGccLib/include-fixed" ]; then
+	cp -r "$crossGccLib/include-fixed" \
+		"$devel/develop/headers/gcc/include-fixed"
+fi
 
 package_info() {
 	# package_info DIRECTORY NAME SUMMARY
@@ -141,6 +153,23 @@ for name in gcc_syslibs gcc_syslibs_devel; do
 	(cd "$STAGE/$name" && "$packageTool" create -q \
 		"$STAGE/$name-${version}_indy-1-mips.hpkg")
 done
+
+# The same content under the names of the bootstrap repository
+# (build/jam/repositories/HaikuPortsCross/mips). A package that exists in
+# the build directory of that repository is not built by haikuporter.
+for name in gcc_syslibs gcc_syslibs_devel; do
+	bootstrapName="gcc_bootstrap_${name#gcc_}"
+	sed -i -e "s/^name\t\t\t.*/name\t\t\t$bootstrapName/" \
+		-e "s/^\t$name = \(.*\)/\t$bootstrapName = \1\n\t$name = \1/" \
+		"$STAGE/$name/.PackageInfo"
+	(cd "$STAGE/$name" && "$packageTool" create -q \
+		"$STAGE/$bootstrapName-${version}_indy-1-mips.hpkg")
+done
+if [ -n "${BOOTSTRAP_OUTPUT:-}" ]; then
+	repository="$BOOTSTRAP_OUTPUT/objects/haiku/mips/packaging/repositories/HaikuPortsCross-build/packages"
+	mkdir -p "$repository"
+	cp "$STAGE"/gcc_bootstrap_*.hpkg "$repository/"
+fi
 
 echo "syslibs.sh: packages in $STAGE"
 ls -l "$STAGE"/*.hpkg
