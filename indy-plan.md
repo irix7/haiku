@@ -54,7 +54,7 @@ Rules:
 | M2 loader | `haiku_loader: archive mounted` | Done 2026-11-18 on iris. The serial gate shows `haiku_loader: start`, the Count rate (33.0 MHz), `RAM: 64 MB`, `haiku_loader: archive mounted`, `haiku_loader: kseg2 ok`, then the kernel's first line. |
 | M3 kernel core | `haiku: m3 threads ok` | Gate passes on iris 2026-11-18: `./indy/gate.sh generated.mips/haiku-indy-netboot "haiku: m3 threads ok"`. User mode, FPU and signal code have not run. |
 | M4 modules, interrupts, storage | `haiku: m4 boot volume mounted` | M4.1 to M4.4 work on iris 2026-11-18: add-ons load, `wd33c93: controller ready`, the disk is published as `disk/scsi/0/1/0/raw`, and with a BFS image the log shows `bfs: mounted "Haiku"` and `Mounted boot partition`. The boot then stops at `error starting "/boot/system/servers/launch_daemon"`, because the volume is empty. M4.5 (interrupts, DMA) not written. |
-| M5 userland | `haiku: m5 userland` | Arch files written (M5.1 to M5.3). `libroot.so` and `runtime_loader` link (section 1.4). M5.4 done 2026-11-24 (section 1.3). M5.5 and M5.6 not started. |
+| M5 userland | `haiku: m5 userland` | Arch files written (M5.1 to M5.3). `libroot.so` and `runtime_loader` link (section 1.4). M5.4 done 2026-11-24 (section 1.3). M5.5: every package but `gcc_bootstrap` builds in CI (section 1.5). M5.6 not started. |
 | M6 desktop | `haiku: m6 desktop` plus screenshot | M6.1 done on iris 2026-11-18 (`make -C indy gate-rex3`, both gradients drawn). Driver, accelerant, app_server hook, isa and ps2 changes written, not run. |
 | M7 network | `haiku: m7 ping ok` | The Seeq driver works on iris 2026-11-18: the kernel configures the interface and mounts its boot volume from a RemoteDisk server (D10a). DHCP and ping from userland not run. |
 | M8 physical Indy | same markers on the machine's serial port | Not started |
@@ -338,10 +338,34 @@ every configure link test for a function passed (`mempcpy`, `eaccess`,
 haikuporter removes `cross-tools-mips/sysroot` after each port it builds.
 `syslibs.sh` stages headers and libraries there again when it runs.
 
-Open: the other 20 stage 1 ports (logs in
-`/mnt/europa/haiku-toolchain/build/port-NAME.log`). `gcc_bootstrap` (the
-compiler that runs on Haiku) is not built. `binutils_bootstrap` 2.41 has no
-mips n32 Haiku target (the patch of M1.2 is for 2.47).
+Result 2026-11-24: run 45305747467 of the bootstrap workflow ended with all
+26 jobs successful (`toolchain`, `boot`, 24 ports). The release
+`mips-packages` of `irix7/haikuports.cross` holds 40 packages: every package
+of `HaikuPortsCross/mips` except `gcc_bootstrap`. The `boot` job reached
+`Mounted boot partition` in IRIS 0.1.13.
+
+What the ports needed (all in `irix7/haikuports.cross`, branch `indy-mips`):
+
+| Port | Change |
+|---|---|
+| zlib, expat, freetype, gawk, m4 | `mips` in `ARCHITECTURES` |
+| libffi 3.4.6 | patch set: `mips*-*-haiku*` in `configure.host`, no `sgidefs.h`, and a type code no type has for the 128-bit long double paths |
+| libtool_cross_generic | `type -P true` for `/bin/true` (NixOS host) |
+| m4, make, gawk | `export CC="...-gcc -std=gnu17"`: not C23 code. A `CC=` argument of `runConfigure` is split at its space. |
+| less | Haiku headers in `cmdbuf.c`, `filename.c`, `lesskey.c` |
+| bash 5.3 | headers for the branch of `netopen.c` without `HAVE_NETWORK` |
+| binutils | new recipe 2.47 from `irix7/binutils-gdb` (`haiku-mips`), mips only |
+
+Open:
+
+- `gcc_bootstrap`, the compiler that runs on Haiku, is not built. The list
+  still names upstream's 13.3.0 recipe, which needs in-tree gmp, mpfr, mpc and
+  isl (the irix7 GCC fork has none), sets `ac_cv_c_bigendian=no`, and would
+  replace the syslibs packages of `syslibs.sh`. It needs a recipe of its own
+  for the GCC 17 fork.
+- No package has run: none of this code has executed on mips.
+- The libffi change for the 64-bit long double is untested at run time.
+- CI runs start by manual dispatch only.
 
 ## 2. Workspace and environment
 
