@@ -73,6 +73,10 @@
           texinfo
           autoconf
           automake
+          # for haikuporter's host side of the bootstrap ports
+          libtool
+          cmake
+          pkg-config
           perl
           python3
           git
