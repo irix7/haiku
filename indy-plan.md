@@ -428,26 +428,53 @@ Open:
   Nothing checks them. The gate runs headless, so `app_server` finds no
   Newport board. Programs of the port packages (`bash`) need the packages of
   the CI run that follows the linker fix.
-- The boot volume is read-only. BFS is little-endian on disk, and
-  `Volume::Mount()` forces `B_MOUNT_READ_ONLY` when the host byte order
-  differs. With the guard lifted for mips (tried 2026-11-24, reverted) BFS
-  prints `Could not find value in index "size"` and panics in the log flusher
-  (`Journal.cpp:327`, `run.length == 1`): the byte-swapped write path has
-  bugs. A writable volume needs those fixed, either in the kernel (little-
-  endian disk) or in `bfs_shell` on the build host (big-endian disk with
-  `BFS_BIG_ENDIAN_ONLY`, no swaps on the Indy). First task of M6.
-- Memory: with 128 MB the kernel reports `low resource memory: critical` and
-  `runtime_loader` fails with `Out of memory` for some teams, while 3485 of
-  8192 pages are cached. `sAvailableMemoryAndSwap` runs out: there is no swap
-  file (`/var/swap` is on the read-only volume), and each team commits a heap
-  area of about 8.5 MB. The sizes in `PagesAllocator.cpp` (`kFreeMinimum`,
-  `kLargestUsefulChunk`) and the caches of the OpenBSD malloc count in pages,
-  so they are four times larger with 16 kB pages.
+- Memory: each team commits a heap area of about 8.5 MB. With the swap file
+  of section 1.7 the commitments fit in 128 MB. The cause of the 8.5 MB is not
+  measured yet.
 - The loader's allocations at the end of RAM (15.7 MB, printed by
   `mmu_init_for_kernel()`) stay allocated in the kernel.
 - The M5 gate does not run in CI.
 - iris prints `MC: CPU Error at 000b8000`: the `vga_text` console module
   probes PC video memory.
+
+
+### 1.7 Big-endian BFS and the writable boot volume, 2026-11-25
+
+The mips port keeps its volumes in big-endian BFS, the byte order of the CPU.
+`BFS_BIG_ENDIAN_ONLY` is set for mips in three places: the kernel add-on
+(`bfs/JamCommon`), the boot loader (`boot/loader/file_systems/bfs/Jamfile`) and
+`bfs_shell` (`src/tools/bfs_shell/Jamfile`). `BFS_ENDIAN_IS_DEFAULT` keeps the
+name `bfs` for the add-on. The Indy runs BFS without byte swaps. `bfs_shell`
+on the x86 build host swaps, and `Volume::Mount()` lets the shell mount such a
+volume read-write (the kernel still mounts a volume of the other byte order
+read-only).
+
+The swapped write path had these bugs, all fixed:
+
+| Place | Bug |
+|---|---|
+| `BPlusTree::Remove()` | compared the on-disk value with the host value: `Could not find value in index` |
+| `BPlusTree::_RemoveKey()` | wrote `all_key_length` with the 64-bit swap: crash |
+| `bplustree_node::CountDuplicates()`, `DuplicateAt()` | returned on-disk values |
+| numeric index keys | were stored in host byte order. `SwappedKey` converts them at `Insert`, `Remove`, `Replace`, `Find` and `TreeIterator`, so the tree holds them in volume byte order |
+| `AllocationBlock::NextFree()` | read the bitmap chunk unswapped: endless loop in `AllocateBlocks()` |
+| `BlockAllocator` free range scan at mount | read the bitmap unswapped |
+| `Journal` | `flags` written and compared unswapped, `ASSERT(run.length == 1)` |
+| `Inode`, `Query` | `small_data::data_size` and `type` read unswapped |
+
+Host tests with `bfs_shell` on a big-endian image: recursive copy, 200
+deletions, `checkfs` without errors, a 6 MB file in 1222 indirect block runs
+read back identical, log replay after `kill -9`. Double indirect runs are not
+covered.
+
+`bfs_shell` fails to unmount (`Device or resource busy`) after `cp` onto an
+existing file. The little-endian shell does the same, so the cause is in
+`fs_shell`.
+
+Result on iris with 128 MB, 90 s after the M5 marker: the boot volume is
+writable, the kernel creates a swap file of 7133 pages, no
+`low resource memory` message appears, and `Tracker`, `Deskbar` and `python3`
+(from a port package) run.
 
 ## 2. Workspace and environment
 
@@ -2026,8 +2053,8 @@ of unimplemented operations.
   project here. M2.4 tests it first.
 - **Big-endian userland.** No big-endian Haiku port has reached the desktop.
   Expect byte-order bugs in app_server colour handling and in file formats.
-  BFS is little-endian on disk on every host and HPKG is big-endian, so images
-  built on x86 are readable. ICU data must be the big-endian variant.
+  The mips port uses big-endian BFS (section 1.7) and HPKG is big-endian on
+  every host. ICU data must be the big-endian variant.
 - **Keyboard scancode set** on the real controller (section 3.9).
 - **Haiku's ps2, SCSI and network stacks on a bus that is neither PCI nor FDT.**
   Task M4.2 is the first test of the fixed-child approach.

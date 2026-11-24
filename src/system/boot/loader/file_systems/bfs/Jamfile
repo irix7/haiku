@@ -7,6 +7,12 @@ SubDirHdrs $(HAIKU_TOP) src add-ons kernel file_systems bfs ;
 
 SubDirC++Flags -fno-rtti ;
 
+if $(TARGET_ARCH) = mips {
+	# The mips port keeps its volumes in big-endian BFS.
+	SubDirCcFlags -DBFS_BIG_ENDIAN_ONLY ;
+	SubDirC++Flags -DBFS_BIG_ENDIAN_ONLY ;
+}
+
 local platform ;
 for platform in [ MultiBootSubDirSetup ] {
 	on $(platform) {

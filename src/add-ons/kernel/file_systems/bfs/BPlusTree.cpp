@@ -1040,6 +1040,38 @@ BPlusTree::_RemoveIterator(TreeIterator* iterator)
 #endif // !_BOOT_MODE
 
 
+/*!	The tree stores numeric keys in the byte order of the volume, callers
+	pass them in the byte order of the host. This class holds the copy of a
+	key in the other byte order. String keys and all keys of a volume in host
+	byte order pass through unchanged.
+*/
+class SwappedKey {
+public:
+	SwappedKey(uint32 treeType, const uint8* key, uint16 length)
+		:
+		fKey(key)
+	{
+#ifndef BFS_NATIVE_ENDIAN
+		if (treeType != BPLUSTREE_STRING_TYPE && key != NULL
+			&& length > 1 && length <= sizeof(fBuffer)) {
+			for (uint16 i = 0; i < length; i++)
+				fBuffer[i] = key[length - 1 - i];
+			fKey = fBuffer;
+		}
+#endif
+	}
+
+	const uint8* Key() const { return fKey; }
+
+private:
+			const uint8*		fKey;
+#ifndef BFS_NATIVE_ENDIAN
+			uint8				fBuffer[8];
+#endif
+};
+
+
+/*!	Compares two keys in the byte order of the volume. */
 int32
 BPlusTree::_CompareKeys(const void* key1, int keyLength1, const void* key2,
 	int keyLength2)
@@ -1068,7 +1100,10 @@ BPlusTree::_CompareKeys(const void* key1, int keyLength1, const void* key2,
 	    	type = B_DOUBLE_TYPE;
 	    	break;
 	}
-	return QueryParser::compareKeys(type, key1, keyLength1, key2, keyLength2);
+	SwappedKey hostKey1(fHeader.DataType(), (const uint8*)key1, keyLength1);
+	SwappedKey hostKey2(fHeader.DataType(), (const uint8*)key2, keyLength2);
+	return QueryParser::compareKeys(type, hostKey1.Key(), keyLength1,
+		hostKey2.Key(), keyLength2);
 }
 
 
@@ -1719,6 +1754,9 @@ BPlusTree::Insert(Transaction& transaction, const uint8* key, uint16 keyLength,
 		panic("tried to insert invalid value %" B_PRId64 "!\n", value);
 #endif
 
+	SwappedKey diskKey(fHeader.DataType(), key, keyLength);
+	key = diskKey.Key();
+
 	ASSERT_WRITE_LOCKED_INODE(fStream);
 
 	Stack<node_and_key> stack;
@@ -2095,7 +2133,7 @@ BPlusTree::_RemoveKey(bplustree_node* node, uint16 index)
 	uint8* keys = node->Keys();
 
 	node->all_key_count = HOST_ENDIAN_TO_BFS_INT16(node->NumKeys() - 1);
-	node->all_key_length = HOST_ENDIAN_TO_BFS_INT64(
+	node->all_key_length = HOST_ENDIAN_TO_BFS_INT16(
 		node->AllKeyLength() - length);
 
 	Unaligned<off_t>* newValues = node->Values();
@@ -2135,6 +2173,9 @@ BPlusTree::Remove(Transaction& transaction, const uint8* key, uint16 keyLength,
 		|| keyLength > BPLUSTREE_MAX_KEY_LENGTH)
 		RETURN_ERROR(B_BAD_VALUE);
 
+	SwappedKey diskKey(fHeader.DataType(), key, keyLength);
+	key = diskKey.Key();
+
 	ASSERT_WRITE_LOCKED_INODE(fStream);
 
 	Stack<node_and_key> stack;
@@ -2169,7 +2210,8 @@ BPlusTree::Remove(Transaction& transaction, const uint8* key, uint16 keyLength,
 					"allowed, inode %" B_PRIdOFF "!\n", fStream->ID()));
 				RETURN_ERROR(B_ERROR);
 			} else {
-				if (node->Values()[nodeAndKey.keyIndex] != value)
+				if (BFS_ENDIAN_TO_HOST_INT64(
+						node->Values()[nodeAndKey.keyIndex]) != value)
 					return B_ENTRY_NOT_FOUND;
 
 				// If we will remove the last key, the iterator will be set
@@ -2259,6 +2301,9 @@ BPlusTree::Replace(Transaction& transaction, const uint8* key, uint16 keyLength,
 		|| key == NULL)
 		RETURN_ERROR(B_BAD_VALUE);
 
+	SwappedKey diskKey(fHeader.DataType(), key, keyLength);
+	key = diskKey.Key();
+
 	if (fAllowDuplicates)
 		RETURN_ERROR(B_BAD_TYPE);
 
@@ -2314,6 +2359,9 @@ BPlusTree::Find(const uint8* key, uint16 keyLength, off_t* _value)
 
 	if (keyLength > BPLUSTREE_MAX_KEY_LENGTH)
 		RETURN_ERROR(B_NAME_TOO_LONG);
+
+	SwappedKey diskKey(fHeader.DataType(), key, keyLength);
+	key = diskKey.Key();
 
 	if (fAllowDuplicates)
 		RETURN_ERROR(B_BAD_TYPE);
@@ -2792,7 +2840,8 @@ TreeIterator::Traverse(int8 direction, void* key, uint16* keyLength,
 		length = maxLength - 1;
 	}
 
-	memcpy(key, keyStart, length);
+	SwappedKey hostKey(fTree->fHeader.DataType(), keyStart, length);
+	memcpy(key, hostKey.Key(), length);
 
 	if (needsTermination)
 		((char*)key)[length] = '\0';
@@ -2846,6 +2895,9 @@ TreeIterator::Find(const uint8* key, uint16 keyLength)
 		|| keyLength > BPLUSTREE_MAX_KEY_LENGTH
 		|| key == NULL)
 		RETURN_ERROR(B_BAD_VALUE);
+
+	SwappedKey diskKey(fTree->fHeader.DataType(), key, keyLength);
+	key = diskKey.Key();
 
 #if !_BOOT_MODE
 	// lock access to stream
@@ -2987,7 +3039,7 @@ bplustree_node::CountDuplicates(off_t offset, bool isFragment) const
 	if (isFragment) {
 		uint32 fragment = (NUM_FRAGMENT_VALUES + 1) * ((uint64)offset & 0x3ff);
 
-		return ((off_t*)this)[fragment];
+		return BFS_ENDIAN_TO_HOST_INT64(((off_t*)this)[fragment]);
 	}
 	return OverflowLink();
 }
@@ -3002,7 +3054,7 @@ bplustree_node::DuplicateAt(off_t offset, bool isFragment, int8 index) const
 	else
 		start = 2;
 
-	return ((off_t*)this)[start + 1 + index];
+	return BFS_ENDIAN_TO_HOST_INT64(((off_t*)this)[start + 1 + index]);
 }
 
 

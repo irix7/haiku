@@ -10,6 +10,10 @@
 	if $(SUBDIR:B) = bfs_big {
 		defines += BFS_BIG_ENDIAN_ONLY ;
 		SubDirHdrs $(HAIKU_TOP) src add-ons kernel file_systems bfs ;
+	} else if $(TARGET_ARCH) = mips {
+		# The mips port keeps its volumes in big-endian BFS, the byte order
+		# of the CPU. The add-on keeps the name "bfs".
+		defines += BFS_BIG_ENDIAN_ONLY BFS_ENDIAN_IS_DEFAULT ;
 	}
 
 	if $(TARGET_KERNEL_ARCH) = x86_gcc2 {

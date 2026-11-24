@@ -181,9 +181,10 @@ status_t
 Volume::Mount(const char* deviceName, uint32 flags)
 {
 	// TODO: validate the FS in write mode as well!
-#if (B_HOST_IS_LENDIAN && defined(BFS_BIG_ENDIAN_ONLY)) \
-	|| (B_HOST_IS_BENDIAN && defined(BFS_LITTLE_ENDIAN_ONLY))
-	// in big endian mode, we only mount read-only for now
+#if !defined(FS_SHELL) && !defined(BFS_NATIVE_ENDIAN)
+	// The kernel mounts a volume of the other byte order read-only. The
+	// bfs_shell writes such volumes: it builds the images of big-endian
+	// targets on little-endian hosts.
 	flags |= B_MOUNT_READ_ONLY;
 #endif
 

@@ -282,7 +282,7 @@ AllocationBlock::NextFree(uint16 startBlock)
 
 	for (uint32 offset = ROUNDDOWN(startBlock, 32);
 			offset < fNumBits; offset += 32) {
-		uint32 chunk = Chunk(offset >> 5);
+		uint32 chunk = BFS_ENDIAN_TO_HOST_INT32(Chunk(offset >> 5));
 		chunk |= ignoreNext;
 		ignoreNext = 0;
 
@@ -798,7 +798,7 @@ BlockAllocator::_Initialize(BlockAllocator* allocator)
 
 		for (int32 k = 0; k < count; k++) {
 			for (int32 j = 0; j < 32 && bit < numBits; j++, bit++) {
-				if (buffer[k] & (1UL << j)) {
+				if (BFS_ENDIAN_TO_HOST_INT32(buffer[k]) & (1UL << j)) {
 					// block is in use
 					if (range > 0) {
 						groups[i].AddFreeRange(start, range);
