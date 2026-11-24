@@ -16,7 +16,9 @@
 # Environment:
 #   BOOTSTRAP_OUTPUT  the build directory
 #                     (default /mnt/europa/haiku-toolchain/bootstrap)
-#   PORTS             the directory with the haikuporter checkout
+#   PORTS             the directory with the checkouts of
+#                     github.com/irix7/haikuporter and irix7/haikuports.cross,
+#                     branch indy-mips
 #                     (default /mnt/europa/haiku-toolchain/ports)
 #   PORTER_ARGS       extra haikuporter options, for example "--debug"
 set -euo pipefail

@@ -262,9 +262,13 @@ Neither binary has run. The kernel has to apply the 211 relocations of
 Setup that works:
 
 - Clones under `/mnt/europa/haiku-toolchain/ports`: haikuporter (c078118),
-  haikuports.cross (a6e2c64), haikuports (569482e, depth 1). Their changes
-  are `indy/toolchain/patches/haikuporter-mips.patch` and
-  `haikuports-cross-mips.patch`; nothing is committed in the clones.
+  haikuports.cross (a6e2c64), haikuports (569482e, depth 1): the upstream
+  commits the work started from. Since 2026-11-24 the clones are on branch
+  `indy-mips` of the forks `github.com/irix7/haikuporter` and
+  `irix7/haikuports.cross` (remote `irix7`), where that branch is the default
+  branch, as it is in `irix7/haiku`. Commit recipe changes there. The GCC and
+  binutils worktrees are on branch `haiku-mips` of `irix7/gcc` and
+  `irix7/binutils-gdb`, committed and pushed.
 - haikuporter: `mips` with triplet `mips-unknown-haiku` in `RecipeTypes.py`.
   Two fixes for the NixOS host: git gets `PATH` (`Source.py`), and the build
   shells keep `PATH` (`Utils.py` passes `NOSYSBASHRC`, which `port.sh` sets).
