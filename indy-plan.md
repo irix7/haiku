@@ -313,7 +313,11 @@ forks and the hash of `indy/toolchain`; then the stage 1 sysroot), `ports`
   nothing, so a run that was cancelled or timed out continues where it
   stopped. A changed recipe needs a new `REVISION`; the `rebuild` input of a
   manual run builds everything.
-- A port goes into the matrix when it builds locally.
+- Since 2026-11-24 the matrix holds every port of `HaikuPortsCross/mips`
+  and the ports are fixed from the CI results (owner's decision): read the
+  failures with `indy/ci-failures.sh`, push recipe fixes to
+  `irix7/haikuports.cross`, start a run. Local port builds are for
+  reproducing a single failure only.
 - Failures: `indy/ci-failures.sh [RUN_ID]` lists the failed jobs of a run and
   prints each job's `errors.txt` (first errors and log end, written by
   `indy/toolchain/port-errors.sh` for ports). The same script reads a local
