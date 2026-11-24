@@ -2,7 +2,8 @@
 # version of a recipe in haikuports.cross. The gcc_bootstrap_syslibs packages
 # are built from the GCC 17 fork with indy/toolchain/syslibs.sh, which puts
 # them into the build directory of this repository, so haikuporter does not
-# build GCC.
+# build GCC. The list has no gcc_bootstrap (the compiler that runs on Haiku):
+# haikuports.cross has no recipe for the GCC 17 fork yet.
 BootstrapPackageRepository HaikuPortsCross
 	: mips
 	:
@@ -12,7 +13,6 @@ BootstrapPackageRepository HaikuPortsCross
 	noto-20170202-7
 	:
 	# repository architecture packages (stage 0)
-	gcc_bootstrap-13.3.0_2026_03_29-1
 	gcc_bootstrap_syslibs-17.0.0_indy-1
 	gcc_bootstrap_syslibs_devel-17.0.0_indy-1
 	:
@@ -59,7 +59,6 @@ BootstrapPackageRepository HaikuPortsCross
 	flex_bootstrap
 	freetype_bootstrap
 	gawk_bootstrap
-	gcc_bootstrap
 	grep_bootstrap
 	less_bootstrap
 	libffi_bootstrap

@@ -2,6 +2,8 @@ SubDir HAIKU_TOP src system kernel arch mips ;
 
 UsePrivateKernelHeaders ;
 
+SEARCH_SOURCE += [ FDirName $(SUBDIR) $(DOTDOT) generic ] ;
+
 KernelMergeObject kernel_arch_mips.o :
 	arch_asm.S
 	arch_exceptions.S
@@ -23,6 +25,8 @@ KernelMergeObject kernel_arch_mips.o :
 	arch_user_debugger.cpp
 	arch_vm.cpp
 	arch_vm_translation_map.cpp
+	# the pci bus manager links against these
+	generic_msi.cpp
 	MIPSVMTranslationMap.cpp
 	:
 	$(TARGET_KERNEL_PIC_CCFLAGS) -Wno-unused

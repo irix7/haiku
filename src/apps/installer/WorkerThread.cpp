@@ -263,6 +263,9 @@ arch_efi_default_prefix()
 	return BString("BOOTRISCV64");
 #elif defined(__powerpc__)
 	return BString("BOOTPPC");
+#elif defined(__mips__)
+	// The ARCS firmware of the SGI machines does not read this directory.
+	return BString("BOOTMIPS");
 #else
 	#error "Error: Unknown EFI Architecture!"
 #endif

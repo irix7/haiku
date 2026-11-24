@@ -288,7 +288,7 @@ get_accelerant_hook(uint32 feature, void* data)
 			return (void*)newport_set_indexed_colors;
 
 		/* the screen is updated from the shadow frame buffer */
-		case B_FRONT_BUFFER_UPDATED:
+		case (uint32)B_FRONT_BUFFER_UPDATED:
 			return (void*)newport_front_buffer_updated;
 	}
 
