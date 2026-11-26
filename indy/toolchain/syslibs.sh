@@ -65,6 +65,10 @@ printf 'INPUT(libroot.so)\n' >"$lib/libpthread.so"
 # libroot also exports dlopen, dlsym, dlclose and dlerror.
 printf 'INPUT(libroot.so)\n' >"$lib/libdl.so"
 
+# libtool adds -lgcc_s to the link of C++ shared libraries. The compiler
+# support code comes from libgcc.a here.
+printf 'INPUT(-lgcc)\n' >"$lib/libgcc_s.so"
+
 # The gcc patch adds -lssp_nonshared to LINK_SSP_SPEC, but gcc is built with
 # --disable-libssp. An empty archive lets -fstack-protector links resolve it.
 rm -f "$lib/libssp_nonshared.a"
