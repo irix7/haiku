@@ -1,0 +1,4 @@
+# Answers for the tests of configure scripts that cannot run a program of the
+# target while cross compiling (CONFIG_SITE of indy/toolchain/port.sh). Each
+# answer comes from a port that stopped at that test.
+gl_cv_func_strcasecmp_works=yes
