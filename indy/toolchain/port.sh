@@ -67,6 +67,18 @@ export NOSYSBASHRC=1
 # bsearch and qsort, so that warning is off here too.
 export CC="mips-unknown-haiku-gcc -std=gnu17 -Wno-error=implicit-function-declaration -Wno-incompatible-pointer-types"
 
+# Recipes that need a change for the cross build: recipe-fixes/NAME.recipe.sed
+# is applied to NAME.recipe in the tree, once (the patterns match only the
+# original text).
+FIXES="$(cd "$(dirname "$0")" && pwd)/recipe-fixes"
+if [ -n "${TREE_PATH:-}" ] && [ -d "$FIXES" ]; then
+	for fix in "$FIXES"/*.recipe.sed; do
+		[ -e "$fix" ] || continue
+		recipe=$(basename "$fix" .sed)
+		find "$TREE_PATH" -name "$recipe" -exec sed -i -f "$fix" {} +
+	done
+fi
+
 if [ -n "${TREE_PATH:-}" ]; then
 	# haikuporter reads haikuports.conf from the current directory.
 	# The file .cross marks a tree for a cross-build repository.
