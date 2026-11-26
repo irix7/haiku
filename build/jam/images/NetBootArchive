@@ -84,7 +84,7 @@ if $(TARGET_ARCH) = mips {
 		ahci
 		;
 	AddFilesToNetBootArchive system add-ons kernel console :
-		vga_text
+		vga_text@!mips
 		;
 }
 AddFilesToNetBootArchive system add-ons kernel file_systems

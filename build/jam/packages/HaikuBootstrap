@@ -40,7 +40,7 @@ AddFilesToPackage add-ons kernel busses virtio :
 	virtio_pci
 	;
 AddFilesToPackage add-ons kernel console :
-	vga_text
+	vga_text@!mips
 	;
 AddFilesToPackage add-ons kernel debugger :
 	<kdebug>demangle
