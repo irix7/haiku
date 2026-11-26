@@ -9,6 +9,8 @@
 #   BOOTSTRAP   bootstrap build directory
 #               (default /mnt/europa/haiku-toolchain/bootstrap)
 #   IMAGE_SIZE  size of the image in MB (default 600)
+#   IMAGE_JAM_ARGS  more jam arguments for the image, for example
+#               -sHAIKU_LEAN_IMAGE=1
 #   NO_BUILD    set to skip the two jam runs
 set -euo pipefail
 
@@ -21,7 +23,7 @@ IMAGE_SIZE="${IMAGE_SIZE:-600}"
 if [ -z "${NO_BUILD:-}" ]; then
 	OUTPUT="$BOOTSTRAP" "$TOP/indy/jam.sh" @bootstrap-raw build \
 		haiku-netboot-indy
-	OUTPUT="$BOOTSTRAP" JAM_ARGS="-sHAIKU_IMAGE_SIZE=$IMAGE_SIZE" \
+	OUTPUT="$BOOTSTRAP" JAM_ARGS="-sHAIKU_IMAGE_SIZE=$IMAGE_SIZE ${IMAGE_JAM_ARGS:-}" \
 		"$TOP/indy/jam.sh" @bootstrap-raw
 fi
 
