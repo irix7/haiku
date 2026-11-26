@@ -227,6 +227,10 @@ platform_register_boot_device(Node* device, disk_identifier* defaultDiskID)
 			"\n", netAddress, clientMAC);
 
 		gBootParams.SetInt32(BOOT_METHOD, BOOT_METHOD_NET);
+		// The loader's own volume is the boot archive, which has no
+		// packages. This makes the kernel look for them on the volume it
+		// mounts and mount packagefs.
+		gBootParams.SetBool(BOOT_VOLUME_BOOTED_FROM_IMAGE, true);
 		gBootParams.SetInt64("client MAC", clientMAC);
 		gBootParams.SetInt32("client IP", clientIP);
 

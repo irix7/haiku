@@ -56,6 +56,11 @@ struct seeq_device {
 	hpc3_descriptor*	txDescriptor;
 	uint8*				txBuffer;
 	uint32				rxIndex;
+	uint32				rxEnd;				// descriptor with HPC3_DESC_EOX
+
+	uint32				rxBadFrames;
+	uint32				rxRestarts;
+	uint32				txErrors;
 
 	// The frames from rxIndex up to scanIndex have been shown to the debug
 	// console of the kernel. rxState tells which of them it took.
@@ -156,19 +161,52 @@ start_receiver(seeq_device& device)
 		hpc3_descriptor& descriptor = device.rxDescriptors[i];
 		descriptor.buffer = physical_of(device,
 			device.rxBuffers + i * SEEQ_RX_BUFFER_SIZE);
-		descriptor.control = SEEQ_RX_ARMED;
+		descriptor.control = SEEQ_RX_ARMED
+			| (i == SEEQ_RX_RING_SIZE - 1 ? HPC3_DESC_EOX : 0);
 		descriptor.next = physical_of(device,
 			&device.rxDescriptors[(i + 1) % SEEQ_RX_RING_SIZE]);
 		device.rxState[i] = RX_NEW;
 	}
 	device.rxIndex = 0;
 	device.scanIndex = 0;
+	device.rxEnd = SEEQ_RX_RING_SIZE - 1;
 
-	uint32 first = physical_of(device, &device.rxDescriptors[0]);
-	indy_write32(INDY_HPC3_ENET_RX_CBP, first);
-	indy_write32(INDY_HPC3_ENET_RX_NDBP, first);
-	indy_write32(INDY_HPC3_ENET_RX_CTRL, 0);
+	indy_write32(INDY_HPC3_ENET_RX_NDBP,
+		physical_of(device, &device.rxDescriptors[0]));
 	indy_write32(INDY_HPC3_ENET_RX_CTRL, HPC3_ENET_CTRL_ACTIVE);
+}
+
+
+/*!	Starts the receive channel again at the next descriptor to read. The
+	HPC3 stops at the end of the ring, when the reader was slower than the
+	network. Interrupts must be off.
+*/
+static void
+restart_receiver(seeq_device& device)
+{
+	if ((indy_read32(INDY_HPC3_ENET_RX_CTRL) & HPC3_ENET_CTRL_ACTIVE) != 0
+		|| (device.rxDescriptors[device.rxIndex].control & HPC3_DESC_OWN)
+			== 0) {
+		return;
+	}
+
+	device.rxRestarts++;
+	indy_write32(INDY_HPC3_ENET_RX_NDBP,
+		physical_of(device, &device.rxDescriptors[device.rxIndex]));
+	indy_write32(INDY_HPC3_ENET_RX_CTRL, HPC3_ENET_CTRL_ACTIVE);
+}
+
+
+/*!	Hands a descriptor back to the HPC3 and moves the end of the ring onto
+	it. Interrupts must be off.
+*/
+static void
+rearm_descriptor(seeq_device& device, uint32 index)
+{
+	device.rxDescriptors[index].control = SEEQ_RX_ARMED | HPC3_DESC_EOX;
+	if (device.rxEnd != index)
+		device.rxDescriptors[device.rxEnd].control &= ~HPC3_DESC_EOX;
+	device.rxEnd = index;
 }
 
 
@@ -182,8 +220,8 @@ get_frame(seeq_device& device, uint32 index, const uint8*& _frame,
 	// The count field holds the bytes that were left over.
 	uint32 remaining = device.rxDescriptors[index].control
 		& HPC3_DESC_COUNT_MASK;
-	uint32 total = remaining < SEEQ_RX_MAX_COUNT
-		? SEEQ_RX_MAX_COUNT - remaining : 0;
+	uint32 total = remaining < SEEQ_RX_BUFFER_SIZE
+		? SEEQ_RX_BUFFER_SIZE - remaining : 0;
 	if (total < SEEQ_RX_OVERHEAD)
 		return false;
 
@@ -240,6 +278,7 @@ seeq_interrupt(void* data)
 		indy_read32(INDY_HPC3_INTSTAT) & HPC3_INTSTAT_ENET_DMA);
 
 	scan_received_frames(*device);
+	restart_receiver(*device);
 
 	release_sem_etc(device->rxSem, 1, B_DO_NOT_RESCHEDULE);
 	return B_INVOKE_SCHEDULER;
@@ -306,7 +345,7 @@ seeq_open(const char* name, uint32 flags, void** _cookie)
 	reset_channel();
 
 	// Register bank 0 holds the station address.
-	seeq_write_register(SEEQ_TX_COMMAND, 0);
+	seeq_write_register(SEEQ_TX_COMMAND, SEEQ_TX_INTERRUPTS);
 	for (int i = 0; i < 6; i++)
 		seeq_write_register(SEEQ_STATION_ADDRESS + i, device.macAddress[i]);
 	seeq_write_register(SEEQ_RX_COMMAND,
@@ -364,12 +403,10 @@ seeq_read(void* cookie, off_t position, void* buffer, size_t* _length)
 		uint32 control = descriptor.control;
 
 		if ((control & HPC3_DESC_OWN) != 0) {
-			// Nothing received yet. A channel that has stopped (it ran
-			// into a descriptor it does not own) is started again.
-			if ((indy_read32(INDY_HPC3_ENET_RX_CTRL) & HPC3_ENET_CTRL_ACTIVE)
-					== 0) {
-				start_receiver(*device);
-			}
+			// Nothing received yet.
+			InterruptsLocker interruptsLocker;
+			restart_receiver(*device);
+			interruptsLocker.Unlock();
 
 			status_t status = acquire_sem_etc(device->rxSem, 1,
 				B_CAN_INTERRUPT | device->blockFlag, 0);
@@ -391,6 +428,16 @@ seeq_read(void* cookie, off_t position, void* buffer, size_t* _length)
 		bool good = !forDebugConsole
 			&& get_frame(*device, device->rxIndex, frame, length);
 
+		if (!good && !forDebugConsole && device->rxBadFrames++ < 16) {
+			uint32 total = SEEQ_RX_BUFFER_SIZE
+				- (control & HPC3_DESC_COUNT_MASK);
+			ERROR("bad frame: descriptor %#" B_PRIx32 ", %" B_PRIu32
+				" bytes, status %#x\n", control, total,
+				total > 0 && total <= SEEQ_RX_BUFFER_SIZE
+					? device->rxBuffers[device->rxIndex
+						* SEEQ_RX_BUFFER_SIZE + total - 1] : 0);
+		}
+
 		status_t status = B_OK;
 		if (good) {
 			if (length > *_length)
@@ -401,8 +448,9 @@ seeq_read(void* cookie, off_t position, void* buffer, size_t* _length)
 		// hand the descriptor back to the HPC3
 		interruptsLocker.Lock();
 		device->rxState[device->rxIndex] = RX_NEW;
-		descriptor.control = SEEQ_RX_ARMED;
+		rearm_descriptor(*device, device->rxIndex);
 		device->rxIndex = (device->rxIndex + 1) % SEEQ_RX_RING_SIZE;
+		restart_receiver(*device);
 		interruptsLocker.Unlock();
 
 		if (!good)
@@ -441,20 +489,29 @@ seeq_write(void* cookie, off_t position, const void* buffer, size_t* _length)
 	device->txDescriptor->control = HPC3_DESC_EOX | HPC3_DESC_EOP | count;
 	device->txDescriptor->next = descriptor;
 
-	indy_write32(INDY_HPC3_ENET_TX_CBP, descriptor);
 	indy_write32(INDY_HPC3_ENET_TX_NDBP, descriptor);
-	indy_write32(INDY_HPC3_ENET_TX_CTRL, 0);
 	indy_write32(INDY_HPC3_ENET_TX_CTRL, HPC3_ENET_CTRL_ACTIVE);
 
-	// A frame takes about a millisecond at 10 Mbit/s.
+	// A frame takes about a millisecond at 10 Mbit/s. The HPC3 sends it
+	// again after a collision and marks the descriptor when it has left.
 	bigtime_t timeout = system_time() + 100000;
-	while ((indy_read32(INDY_HPC3_ENET_TX_CTRL) & HPC3_ENET_CTRL_ACTIVE)
-			!= 0) {
-		if (system_time() > timeout) {
-			ERROR("transmit timeout\n");
+	while ((device->txDescriptor->control & HPC3_DESC_TXD) == 0) {
+		uint32 channel = indy_read32(INDY_HPC3_ENET_TX_CTRL);
+		// The low byte of the register is the transmit status of the Seeq.
+		if ((channel & (HPC3_ENET_CTRL_ACTIVE | SEEQ_TX_STATUS_SENT))
+				== SEEQ_TX_STATUS_SENT) {
+			break;
+		}
+		bool stopped = (channel & HPC3_ENET_CTRL_ACTIVE) == 0
+			&& (device->txDescriptor->control & HPC3_DESC_TXD) == 0;
+		if (stopped || system_time() > timeout) {
+			if (device->txErrors++ < 16) {
+				ERROR("transmit %s, channel %#" B_PRIx32 "\n",
+					stopped ? "failed" : "timeout", channel);
+			}
 			indy_write32(INDY_HPC3_ENET_TX_CTRL, 0);
 			*_length = 0;
-			return B_TIMED_OUT;
+			return stopped ? B_IO_ERROR : B_TIMED_OUT;
 		}
 		snooze(200);
 	}

@@ -49,7 +49,7 @@ static const size_t kDmaSize = ROUNDUP(
 	(kRingSize + 1) * sizeof(hpc3_descriptor)
 		+ (kRingSize + 1) * SEEQ_RX_BUFFER_SIZE, 4096);
 static const uint32 kReceiveArmed
-	= HPC3_DESC_EOP | HPC3_DESC_OWN | SEEQ_RX_MAX_COUNT;
+	= HPC3_DESC_EOP | HPC3_DESC_OWN | SEEQ_RX_BUFFER_SIZE;
 
 static const size_t kEthernetHeaderSize = 14;
 static const size_t kIPHeaderSize = 20;
@@ -408,8 +408,8 @@ poll_receiver()
 		// The count field holds the bytes that were left over. The buffer
 		// holds two pad bytes, the frame and one status byte.
 		uint32 remaining = control & HPC3_DESC_COUNT_MASK;
-		uint32 total = remaining < SEEQ_RX_MAX_COUNT
-			? SEEQ_RX_MAX_COUNT - remaining : 0;
+		uint32 total = remaining < SEEQ_RX_BUFFER_SIZE
+			? SEEQ_RX_BUFFER_SIZE - remaining : 0;
 		const uint8* data = sRxBuffers + sRxIndex * SEEQ_RX_BUFFER_SIZE;
 
 		if (total >= SEEQ_RX_OVERHEAD) {
