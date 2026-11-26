@@ -17,3 +17,13 @@ ac_cv_func_strtod=yes
 ac_cv_func_stat_empty_string_bug=no
 ac_cv_func_lstat_dereferences_slashed_symlink=yes
 ac_cv_func_lstat_empty_string_bug=no
+
+# Files that exist on Haiku; autoconf cannot check for them when cross compiling.
+ac_cv_file__dev_zero=yes
+ac_cv_file__dev_random=yes
+ac_cv_file__dev_urandom=yes
+ac_cv_file__dev_ptmx=no
+ac_cv_file__dev_ptc=no
+
+# GMP picks the ABI o32 for mips; the target is n32.
+ABI=n32
