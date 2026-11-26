@@ -26,7 +26,9 @@
 
 extern device_manager_info gDeviceManagerModule;
 
-const phys_size_t kMaxBounceBufferSize = 4 * B_PAGE_SIZE;
+const phys_size_t kMaxBounceBufferSize = B_PAGE_SIZE > 16384
+	? B_PAGE_SIZE : 16384;
+	// four pages of 4 kB
 
 
 DMABuffer*

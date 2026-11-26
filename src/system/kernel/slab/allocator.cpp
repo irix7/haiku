@@ -45,7 +45,11 @@ static const size_t kBlockSizes[] = {
 	1280, 1536, 1792, 2048,
 	2560, 3072, 3584, 4096,
 	5120, 6144, 7168, 8192,
+#if B_PAGE_SIZE < 16384
 	10240, 12288, 14336, 16384,
+#endif
+	// With pages of 16 kB a block above 8192 bytes is one page from the
+	// memory manager. A cache for it would hold a slab of 512 kB.
 };
 
 static const size_t kNumBlockSizes = B_COUNT_OF(kBlockSizes);
@@ -81,8 +85,10 @@ size_to_index(size_t size)
 		return 25 + (size - 2048 - 1) / 512;
 	if (size <= 8192)
 		return 29 + (size - 4096 - 1) / 1024;
+#if B_PAGE_SIZE < 16384
 	if (size <= 16384)
 		return 33 + (size - 8192 - 1) / 2048;
+#endif
 
 	return -1;
 }

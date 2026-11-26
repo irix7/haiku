@@ -2521,14 +2521,16 @@ vm_page_init(kernel_args *args)
 	// reserve, but should be a few more pages, so we don't have to extract
 	// a cached page with each allocation.
 	sFreePagesTarget = VM_PAGE_RESERVE_USER
-		+ std::max((page_num_t)32, (sNumPages - sNonExistingPages) / 1024);
+		+ std::max((page_num_t)(128 * 1024 / B_PAGE_SIZE),
+			(sNumPages - sNonExistingPages) / 1024);
 
 	// The target of free + cached and inactive pages. On low-memory machines
 	// keep things tight. free + cached is the pool of immediately allocatable
 	// pages. We want a few inactive pages, so when we're actually paging, we
 	// have a reasonably large set of pages to work with.
-	if (sUnreservedFreePages < (16 * 1024)) {
-		sFreeOrCachedPagesTarget = sFreePagesTarget + 128;
+	if (sUnreservedFreePages < (64 * 1024 * 1024 / B_PAGE_SIZE)) {
+		sFreeOrCachedPagesTarget = sFreePagesTarget
+			+ 512 * 1024 / B_PAGE_SIZE;
 		sInactivePagesTarget = sFreePagesTarget / 3;
 	} else {
 		sFreeOrCachedPagesTarget = 2 * sFreePagesTarget;

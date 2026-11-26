@@ -38,9 +38,10 @@ struct VMPageWiringInfo;
 #define VM_PRIORITY_SYSTEM	1
 #define VM_PRIORITY_VIP		2
 
-// page reserves
-#define VM_PAGE_RESERVE_USER	512
-#define VM_PAGE_RESERVE_SYSTEM	128
+// page reserves: 2 MB and 512 kB, which is 512 and 128 pages of 4 kB. A fixed
+// count of pages would keep 8 MB from user allocations with pages of 16 kB.
+#define VM_PAGE_RESERVE_USER	((2 * 1024 * 1024) / B_PAGE_SIZE)
+#define VM_PAGE_RESERVE_SYSTEM	((512 * 1024) / B_PAGE_SIZE)
 
 // memory reserves
 #define VM_MEMORY_RESERVE_USER		(VM_PAGE_RESERVE_USER * B_PAGE_SIZE)
