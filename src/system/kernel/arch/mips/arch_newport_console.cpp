@@ -10,6 +10,8 @@
 	the REX3 chip draws from pixels sent through its host data port. The
 	sequences are those of the newport accelerant.
 
+	The size of the picture is read from the VC2, see detect_screen_size().
+
 	The console wraps: after the last row it continues at the top. The row
 	below the current one is cleared, so the blank row marks the end of the
 	text.
@@ -44,6 +46,11 @@ static int32 sColumns;
 static int32 sRows;
 static int32 sColumn;
 static int32 sRow;
+static bool sWasPresent;
+static uint32 sWidth;
+static uint32 sHeight;
+static uint32 sDetectedWidth;
+static uint32 sDetectedHeight;
 
 
 static inline uint32
@@ -73,6 +80,110 @@ wait_idle(uint32 busy)
 		}
 	}
 	return true;
+}
+
+
+/*!	Returns the next 16 bit word of what REX3_DCBMODE selects. */
+static uint16
+vc2_read_ram()
+{
+	if (!wait_idle(REX3_STATUS_BACK_BUSY))
+		return 0;
+	return *(volatile uint16*)MIPS_KSEG1(INDY_REX3_BASE + REX3_DCBDATA0 + 2);
+}
+
+
+static uint16
+vc2_read_register(uint8 index)
+{
+	if (!wait_idle(REX3_STATUS_BACK_BUSY))
+		return 0;
+	write32(REX3_DCBMODE, REX3_DCB_VC2_INDEX);
+	*(volatile uint8*)MIPS_KSEG1(INDY_REX3_BASE + REX3_DCBDATA0 + 3) = index;
+	write32(REX3_DCBMODE, REX3_DCB_VC2_REGISTER);
+	return vc2_read_ram();
+}
+
+
+/*!	Selects the word of the VC2's RAM that the next vc2_read_ram() returns.
+*/
+static void
+vc2_set_ram_address(uint16 address)
+{
+	if (!wait_idle(REX3_STATUS_BACK_BUSY))
+		return;
+	write32(REX3_DCBMODE, REX3_DCB_VC2_INDEX_DATA);
+	write32(REX3_DCBDATA0,
+		((uint32)VC2_RAM_ADDRESS << 24) | ((uint32)address << 8));
+	write32(REX3_DCBMODE, REX3_DCB_VC2_RAM);
+}
+
+
+/*!	Reads the size of the picture from the video timing table the PROM has
+	loaded into the VC2: a list of (line description, line count) pairs. A
+	line description is a list of runs with their length in pixel clocks.
+	The method is that of the Linux console driver for the board. The PROM
+	chooses the mode by the monitor it senses, 1280 x 1024 or 1024 x 768.
+	A result that is no plausible mode gives 1024 x 768.
+*/
+static void
+detect_screen_size()
+{
+	// every monitor mode of the Indy shows at least this
+	sWidth = 1024;
+	sHeight = 768;
+
+	uint16 table[128];
+	vc2_set_ram_address(vc2_read_register(VC2_VIDEO_ENTRY));
+	for (uint32 i = 0; i < B_COUNT_OF(table); i++)
+		table[i] = vc2_read_ram();
+
+	uint32 width = 0;
+	uint32 height = 0;
+	for (uint32 i = 0; i + 1 < B_COUNT_OF(table) && table[i + 1] != 0;
+			i += 2) {
+		uint32 pixels = 0;
+		vc2_set_ram_address(table[i]);
+		for (uint32 run = 0; run < 256; run++) {
+			uint16 word = vc2_read_ram();
+			if ((word & 0x0001) == 0)
+				pixels += (word >> 7) & 0xfe;
+			if ((word & 0x0080) == 0)
+				word = vc2_read_ram();
+			if ((word & 0x8000) != 0)
+				break;
+		}
+		if (pixels != 0) {
+			if (pixels > width)
+				width = pixels;
+			height += table[i + 1];
+		}
+	}
+
+	if (!sPresent && sWasPresent) {
+		// the board did not answer
+		return;
+	}
+	// The count is a few pixels over the nominal width, 1282 for 1280.
+	if (width >= 640 && width <= NEWPORT_WIDTH + 20 && height >= 480
+		&& height <= NEWPORT_HEIGHT) {
+		sWidth = width > NEWPORT_WIDTH ? NEWPORT_WIDTH : width & ~3;
+		sHeight = height;
+	}
+	sDetectedWidth = width;
+	sDetectedHeight = height;
+}
+
+
+void
+mips_newport_screen_size(uint32* _width, uint32* _height)
+{
+	if (sWidth == 0) {
+		sWasPresent = sPresent;
+		detect_screen_size();
+	}
+	*_width = sWidth;
+	*_height = sHeight;
 }
 
 
@@ -132,7 +243,7 @@ fill(int32 x, int32 y, int32 width, int32 height, uint32 index)
 static void
 clear_row(int32 row)
 {
-	fill(0, row * smallFont.glyphHeight, NEWPORT_WIDTH, smallFont.glyphHeight,
+	fill(0, row * smallFont.glyphHeight, sWidth, smallFont.glyphHeight,
 		COLOR_BACKGROUND);
 }
 
@@ -191,13 +302,13 @@ next_row()
 static void
 start()
 {
-	sColumns = NEWPORT_WIDTH / smallFont.glyphWidth;
-	sRows = NEWPORT_HEIGHT / smallFont.glyphHeight;
+	sColumns = sWidth / smallFont.glyphWidth;
+	sRows = sHeight / smallFont.glyphHeight;
 	sColumn = 0;
 	sRow = 0;
 
 	reset_drawing_state();
-	fill(0, 0, NEWPORT_WIDTH, NEWPORT_HEIGHT, COLOR_BACKGROUND);
+	fill(0, 0, sWidth, sHeight, COLOR_BACKGROUND);
 }
 
 
@@ -205,8 +316,17 @@ void
 mips_newport_console_init(kernel_args* args)
 {
 	sPresent = args->platform_args.prom_graphics != 0;
-	if (sPresent)
-		start();
+	if (!sPresent)
+		return;
+
+	sWasPresent = true;
+	detect_screen_size();
+	if (!sPresent)
+		return;
+	start();
+	dprintf("newport console: %" B_PRIu32 " x %" B_PRIu32 " (video table: %"
+		B_PRIu32 " x %" B_PRIu32 ")\n", sWidth, sHeight, sDetectedWidth,
+		sDetectedHeight);
 }
 
 

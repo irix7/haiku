@@ -11,6 +11,8 @@
 # Environment: as indy/gate.sh. The default WORK is generated.mips/gate-gfx and
 # the default MONITOR_PORT is 18932.
 #   BOOT_ARGS       arguments for the kernel, for example "disk"
+#   CONFIG_END      lines for the end of the machine file, for example
+#                   $'[graphics]\nresolution = "1024x768"'
 #   CONFIG_TOP, THEN  as indy/gate.sh; THEN runs after the screenshot
 #   SETTLE          seconds to wait after the marker before the screenshot
 #                   (default 2)
@@ -62,6 +64,9 @@ tftp_dir = "$WORK/tftp"
 TOML
 	if [ -n "$DISK" ]; then
 		printf '\n[scsi.1]\npath = "%s"\n' "$(realpath "$DISK")"
+	fi
+	if [ -n "${CONFIG_END:-}" ]; then
+		printf '\n%s\n' "$CONFIG_END"
 	fi
 } >"$WORK/machine.toml"
 

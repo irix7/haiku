@@ -102,10 +102,11 @@ newport_front_buffer_updated(int32 left, int32 top, int32 right, int32 bottom)
 		left = 0;
 	if (top < 0)
 		top = 0;
-	if (right >= NEWPORT_WIDTH)
-		right = NEWPORT_WIDTH - 1;
-	if (bottom >= NEWPORT_HEIGHT)
-		bottom = NEWPORT_HEIGHT - 1;
+	const display_mode& mode = gInfo->shared_info->current_mode;
+	if (right >= mode.virtual_width)
+		right = mode.virtual_width - 1;
+	if (bottom >= mode.virtual_height)
+		bottom = mode.virtual_height - 1;
 	if (left > right || top > bottom)
 		return;
 

@@ -196,6 +196,7 @@ struct kernel_args;
 void mips_newport_console_init(struct kernel_args* args);
 void mips_newport_console_putchar(char c);
 void mips_newport_console_stop(void);
+void mips_newport_screen_size(uint32* _width, uint32* _height);
 
 #ifdef __cplusplus
 }

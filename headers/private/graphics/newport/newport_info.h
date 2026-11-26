@@ -17,8 +17,10 @@
  * a shadow buffer in RAM, which the accelerant hands out as the frame
  * buffer, and maps the REX3 registers. The accelerant copies changed
  * rectangles from the shadow to the screen through the REX3 host data port.
- * The only mode is the one the PROM has set: 1280 x 1024, 8 bit colour
- * index. The 8 bit Newport XL board has no other depth.
+ * The only mode is the one the PROM has set: 1280 x 1024 or 1024 x 768,
+ * 8 bit colour index. The 8 bit Newport XL board has no other depth.
+ * NEWPORT_WIDTH and NEWPORT_HEIGHT are the largest picture; the shadow
+ * buffer always has this size. current_mode holds the size in use.
  */
 
 #define NEWPORT_WIDTH			1280
@@ -85,6 +87,18 @@ enum {
 #define REX3_DCB_CMAP_ADDRESS \
 	((1 << 7) | (0 << 4) | 2 | 0x00848000 | (1 << 28) | (1 << 3))
 #define REX3_DCB_CMAP_PALETTE	((1 << 7) | (2 << 4) | 3 | 0x00848000)
+/* DCB access to the VC2 video controller: the index register (one byte,
+   written to the low byte of the data register), the index register with
+   the 16 bit value of the register in one write, the value of the indexed
+   register, the RAM at VC2_RAM_ADDRESS (which counts up). Values are read
+   from the low half of the data register. */
+#define REX3_DCB_VC2_PROTOCOL	0x00841000
+#define REX3_DCB_VC2_INDEX		(0x00 | 0x08 | 1 | REX3_DCB_VC2_PROTOCOL)
+#define REX3_DCB_VC2_INDEX_DATA	(0x00 | 0x08 | 3 | REX3_DCB_VC2_PROTOCOL)
+#define REX3_DCB_VC2_REGISTER	(0x10 | 0x08 | 2 | REX3_DCB_VC2_PROTOCOL)
+#define REX3_DCB_VC2_RAM		(0x30 | 2 | REX3_DCB_VC2_PROTOCOL)
+#define VC2_VIDEO_ENTRY			0x00	/* start of the video timing table */
+#define VC2_RAM_ADDRESS			0x07
 /* DCB access to the colour map's revision register, one byte */
 #define REX3_DCB_CMAP_REVISION	((2 << 7) | (6 << 4) | 1 | 0x00848000)
 

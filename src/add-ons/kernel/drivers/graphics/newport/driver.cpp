@@ -111,28 +111,33 @@ newport_init(newport_info& info)
 	sharedInfo.double_host_writes = true;
 
 	display_mode& mode = sharedInfo.current_mode;
-	mode.virtual_width = NEWPORT_WIDTH;
-	mode.virtual_height = NEWPORT_HEIGHT;
+	// The PROM has chosen the mode. The kernel reads its size from the VC2.
+	uint32 width;
+	uint32 height;
+	mips_newport_screen_size(&width, &height);
+	mode.virtual_width = width;
+	mode.virtual_height = height;
 	mode.space = B_CMAP8;
 	mode.h_display_start = 0;
 	mode.v_display_start = 0;
 	mode.flags = 0;
-	// Nominal timing of the PROM's 1280 x 1024 mode. It is informational:
-	// the driver does not program the video timing.
-	mode.timing.pixel_clock = 107500;
-	mode.timing.h_display = NEWPORT_WIDTH;
-	mode.timing.h_sync_start = 1296;
-	mode.timing.h_sync_end = 1440;
-	mode.timing.h_total = 1688;
-	mode.timing.v_display = NEWPORT_HEIGHT;
-	mode.timing.v_sync_start = 1025;
-	mode.timing.v_sync_end = 1028;
-	mode.timing.v_total = 1066;
+	// Nominal timing in the proportions of the 1280 x 1024 mode. It is
+	// informational: the driver does not program the video timing.
+	mode.timing.pixel_clock = width == NEWPORT_WIDTH ? 107500 : 65000;
+	mode.timing.h_display = width;
+	mode.timing.h_sync_start = width + 16;
+	mode.timing.h_sync_end = width + 160;
+	mode.timing.h_total = width + 408;
+	mode.timing.v_display = height;
+	mode.timing.v_sync_start = height + 1;
+	mode.timing.v_sync_end = height + 4;
+	mode.timing.v_total = height + 42;
 	mode.timing.flags = 0;
 
 	dprintf(DEVICE_NAME ": %" B_PRIu32 " bitplanes (colour map revision %#"
-		B_PRIx32 "), mode 1280 x 1024, 8 bit colour index\n",
-		sharedInfo.bitplanes, revision);
+		B_PRIx32 "), mode %" B_PRIu32 " x %" B_PRIu32
+		", 8 bit colour index\n", sharedInfo.bitplanes, revision, width,
+		height);
 
 	return B_OK;
 }
