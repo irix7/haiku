@@ -33,3 +33,13 @@ ac_cv_file__dev_ptc=no
 
 # GMP picks the ABI o32 for mips; the target is n32.
 ABI=n32
+
+# apr: tests that run a program.
+apr_cv_process_shared_works=yes
+apr_cv_mutex_robust_shared=no
+apr_cv_mutex_recursive=yes
+ac_cv_o_nonblock_inherited=no
+apr_cv_tcp_nodelay_with_cork=no
+apr_cv_epoll=no
+apr_cv_gai_addrconfig=no
+ac_cv_func_poll=yes
