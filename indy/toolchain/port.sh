@@ -21,6 +21,13 @@
 #                     branch indy-mips
 #                     (default /mnt/europa/haiku-toolchain/ports)
 #   PORTER_ARGS       extra haikuporter options, for example "--debug"
+#   TREE_PATH         build from this recipe tree, for example a checkout of
+#                     github.com/haikuports/haikuports, and not from
+#                     irix7/museports.cross. The packages go to the same
+#                     repository directory.
+#   HAIKUPORTER_ALL_ARCHITECTURES
+#                     1 builds recipes that do not list mips (see
+#                     irix7/museporter)
 set -euo pipefail
 
 if [ $# -eq 0 ]; then
@@ -49,7 +56,18 @@ export LD_LIBRARY_PATH="${LD_LIBRARY_PATH:+$LD_LIBRARY_PATH:}$OUTPUT/objects/lin
 # shells.
 export NOSYSBASHRC=1
 
-cd "$REPOSITORY"
+if [ -n "${TREE_PATH:-}" ]; then
+	# haikuporter reads haikuports.conf from the current directory.
+	# The file .cross marks a tree for a cross-build repository.
+	[ -e "$TREE_PATH/.cross" ] || touch "$TREE_PATH/.cross"
+	CONF_DIR="$OUTPUT/tree-conf"
+	mkdir -p "$CONF_DIR"
+	sed "s|^TREE_PATH=.*|TREE_PATH=\"$TREE_PATH\"|" \
+		"$REPOSITORY/haikuports.conf" >"$CONF_DIR/haikuports.conf"
+	cd "$CONF_DIR"
+else
+	cd "$REPOSITORY"
+fi
 for port in "$@"; do
 	"$PORTS/haikuporter/haikuporter" -j"$JOBS" --all-dependencies \
 		${PORTER_ARGS:-} --cross-devel-package "$SYSROOT_PACKAGE" "$port"
