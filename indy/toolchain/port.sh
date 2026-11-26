@@ -43,7 +43,8 @@ REPOSITORY="$OUTPUT/objects/haiku/mips/packaging/repositories/HaikuPortsCross-bu
 SYSROOT_PACKAGE="$OUTPUT/objects/haiku/mips/packaging/packages/haiku_cross_devel_sysroot_stage1_mips.hpkg"
 
 for path in "$REPOSITORY/haikuports.conf" "$SYSROOT_PACKAGE" \
-		"$PORTS/haikuporter/haikuporter"; do
+		"$PORTS/haikuporter/haikuporter" \
+		"$OUTPUT/objects/linux/x86_64/release/tools/addattr/addattr"; do
 	if [ ! -e "$path" ]; then
 		echo "port.sh: missing $path" >&2
 		exit 2
@@ -52,9 +53,19 @@ done
 
 # The host tools of the Haiku build (package, mimeset) need its libraries.
 export LD_LIBRARY_PATH="${LD_LIBRARY_PATH:+$LD_LIBRARY_PATH:}$OUTPUT/objects/linux/lib"
+# Recipes run addattr in their install phase to set BEOS:* attributes. The
+# host is not on PATH with it, so add the host build.
+export PATH="$OUTPUT/objects/linux/x86_64/release/tools/addattr:$PATH"
 # Keeps the bash of a NixOS host from replacing PATH in haikuporter's build
 # shells.
 export NOSYSBASHRC=1
+# The cross gcc defaults to C23, which rejects the unprototyped calls in the
+# bundled getopt.c of some ports and the identifier 'false' in gputils.
+# GCC 14 makes an implicit function declaration an error. aalib calls exit()
+# in aainfo.c without <stdlib.h>, so the warning stays a warning here.
+# GCC 14 also makes incompatible pointer types an error. rman passes them to
+# bsearch and qsort, so that warning is off here too.
+export CC="mips-unknown-haiku-gcc -std=gnu17 -Wno-error=implicit-function-declaration -Wno-incompatible-pointer-types"
 
 if [ -n "${TREE_PATH:-}" ]; then
 	# haikuporter reads haikuports.conf from the current directory.

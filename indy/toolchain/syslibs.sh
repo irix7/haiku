@@ -56,6 +56,19 @@ $TARGET-gcc -O2 -fno-builtin -w -c -I"$TOP/headers/private/system" \
 $TARGET-ld -shared -soname=libroot.so \
 	--version-script "$TOP/src/system/libroot/libroot_versions" \
 	-o "$lib/libroot.so" "$STAGE/libroot_stubs.o"
+# Haiku has no separate math code: libroot provides the math symbols and
+# libm.a is empty. A linker script makes -lm resolve to libroot.so.
+printf 'INPUT(libroot.so)\n' >"$lib/libm.so"
+# libroot also holds the pthread routines. A linker script makes -lpthread
+# resolve to libroot.so, as -lm does.
+printf 'INPUT(libroot.so)\n' >"$lib/libpthread.so"
+# libroot also exports dlopen, dlsym, dlclose and dlerror.
+printf 'INPUT(libroot.so)\n' >"$lib/libdl.so"
+
+# The gcc patch adds -lssp_nonshared to LINK_SSP_SPEC, but gcc is built with
+# --disable-libssp. An empty archive lets -fstack-protector links resolve it.
+rm -f "$lib/libssp_nonshared.a"
+"$PREFIX/bin/$TARGET-ar" rcs "$lib/libssp_nonshared.a"
 
 # 2. Rebuild the target libraries with shared libraries enabled.
 rm -rf "$ROOT/build/gcc-shared" "$STAGE/install" "$STAGE/gcc_syslibs" \

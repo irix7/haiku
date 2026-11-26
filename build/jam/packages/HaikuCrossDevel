@@ -75,6 +75,11 @@ for stage in _stage0 _stage1 "" {
 		# the POSIX error code mapper library
 		AddFilesToPackage $(developCrossLibDirTokens)
 			: [ MultiArchDefaultGristFiles libposix_error_mapper.a ] ;
+
+		# libc, libm and libpthread are empty archives. The functions live in
+		# libroot. Ports link -lc, -lm and -lpthread, so the linker needs them.
+		AddFilesToPackage $(developCrossLibDirTokens)
+			: [ MultiArchDefaultGristFiles libc.a libm.a libpthread.a ] ;
 	}
 
 	# headers

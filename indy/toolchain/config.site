@@ -17,6 +17,12 @@ ac_cv_func_strtod=yes
 ac_cv_func_stat_empty_string_bug=no
 ac_cv_func_lstat_dereferences_slashed_symlink=yes
 ac_cv_func_lstat_empty_string_bug=no
+# setpgrp() takes no argument on Haiku (headers/posix/unistd.h).
+ac_cv_func_setpgrp_void=yes
+# pthread_create is in the libc of Haiku (libroot). nspr tests it with -lc.
+ac_cv_lib_c_pthread_create=yes
+# Signal handlers are void on Haiku. The readline test (BASH_TYPE_SIGHANDLER) fails when cross compiling.
+bash_cv_void_sighandler=yes
 
 # Files that exist on Haiku; autoconf cannot check for them when cross compiling.
 ac_cv_file__dev_zero=yes
