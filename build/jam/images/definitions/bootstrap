@@ -23,3 +23,44 @@ AddFilesToHaikuImage home haikuports : $(formatVersionsFile) ;
 local bootstrapDaemon = <haiku-image>bootstrap_daemon.py ;
 SEARCH on $(bootstrapDaemon) = [ FDirName $(HAIKU_TOP) build scripts ] ;
 AddFilesToHaikuImage home config settings boot launch : $(bootstrapDaemon) ;
+
+# a script that writes the state of the guest to /boot/home/muse-diag.txt
+local museDiag = <haiku-image>muse_diag.sh ;
+SEARCH on $(museDiag) = [ FDirName $(HAIKU_TOP) build scripts ] ;
+AddFilesToHaikuImage home : $(museDiag) ;
+
+# muse_log prints to the kernel debug output; indy/guest/build.sh builds it
+local museLog = muse_log ;
+SEARCH on $(museLog) = [ FDirName $(HAIKU_TOP) generated.mips guest ] ;
+AddFilesToHaikuImage home : $(museLog) ;
+
+# A fixed address for the first Ethernet interface. IRIS has a NAT gateway
+# without DHCP: the guest is network+2 and the gateway network+1. Set
+# HAIKU_STATIC_IP, HAIKU_STATIC_MASK and HAIKU_STATIC_GATEWAY, for example
+# 192.168.0.2, 255.255.255.0 and 192.168.0.1. The interface of the seeq8003
+# driver is /dev/net/seeq8003/0.
+if $(HAIKU_STATIC_IP) {
+	HAIKU_STATIC_MASK ?= 255.255.255.0 ;
+	actions BuildHaikuImageInterfacesFile
+	{
+		cat > $(1) <<INTERFACES
+interface /dev/net/seeq8003/0 {
+	address {
+		family inet
+		address $(STATIC_IP)
+		mask $(STATIC_MASK)
+		gateway $(STATIC_GATEWAY)
+	}
+}
+INTERFACES
+	}
+
+	local interfaces = <haiku-image>interfaces ;
+	Always $(interfaces) ;
+	MakeLocate $(interfaces) : $(HAIKU_COMMON_PLATFORM_OBJECT_DIR) ;
+	STATIC_IP on $(interfaces) = $(HAIKU_STATIC_IP) ;
+	STATIC_MASK on $(interfaces) = $(HAIKU_STATIC_MASK) ;
+	STATIC_GATEWAY on $(interfaces) = $(HAIKU_STATIC_GATEWAY) ;
+	BuildHaikuImageInterfacesFile $(interfaces) ;
+	AddFilesToHaikuImage system settings network : $(interfaces) ;
+}

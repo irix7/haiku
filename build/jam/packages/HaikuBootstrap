@@ -201,11 +201,13 @@ local bootScripts = PostInstallScript SetupEnvironment ;
 SEARCH on $(bootScripts) = [ FDirName $(HAIKU_TOP) data system boot ] ;
 AddFilesToPackage boot : $(bootScripts) ;
 
-local launchScripts = <data!launch>system ;
+# The bootstrap daemon starts with the system, not with the user session: the
+# session needs app_server, which the headless gates do not have.
+local launchScripts = <data!launch>system <data!launch>bootstrap ;
 SEARCH on $(launchScripts) = [ FDirName $(HAIKU_TOP) data launch ] ;
 AddFilesToPackage data launch : $(launchScripts) ;
 
-local userLaunchScripts = <data!launch>user <data!launch>bootstrap ;
+local userLaunchScripts = <data!launch>user ;
 SEARCH on $(userLaunchScripts) = [ FDirName $(HAIKU_TOP) data launch ] ;
 AddFilesToPackage data user_launch : $(userLaunchScripts) ;
 

@@ -71,3 +71,7 @@ job x-vnd.Haiku-cddb_lookup {
 job x-vnd.Haiku-autologin {
 	launch /system/bin/autologin
 }
+
+service muse_diag {
+	launch /boot/system/bin/bash /boot/home/muse_diag.sh
+}
