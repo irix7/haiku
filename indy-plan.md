@@ -2159,6 +2159,38 @@ RemoteDisk root, disk boot through an SGI volume header (firmware calls need
 the thunk of D1), VC2 mode setting without the PROM, HAL2 audio, FPU emulation
 of unimplemented operations.
 
+### Native ports builds in IRIS (decision of 2026-11-27)
+
+The ports of HaikuPorts are built by haikuporter running on Muse inside IRIS,
+not as a cross build on the runner. The cross build (`indy/toolchain/port.sh`,
+the workflow of `irix7/museports.cross`) stays for the bootstrap packages and
+for the packages that the native build needs first. Reason: a cross build
+cannot run the programs a build makes for itself (`jam0`, `snowball`,
+`nsinstall`, `perl` Configure, configure tests), and the application kit
+libraries (`libbe`, `libmedia`) are not in the cross sysroot.
+
+Stages:
+
+1. RAM and speed of IRIS. The kernel uses the RAM that is contiguous from
+   0x08000000: 256 MB, two banks of 128 MB (`indy/gate.sh RAM=256`, passed on
+   2026-11-27). Banks 3 and 4 of IRIS lie at 0x20000000 and need high memory
+   in the kernel (TLB-mapped physical access), which is not written. The
+   hosted runner has 4 vCPUs and 16 GB; one emulated CPU uses one host thread.
+2. Native toolchain, cross built (`indy/toolchain/native.sh`): binutils, then
+   GCC with host and target `mips-unknown-haiku` (Canadian cross), staged in
+   `$HAIKU_TOOLCHAIN/native/stage` below `/boot/system`.
+3. Packages: the native toolchain as hpkg files next to the existing
+   `_bootstrap` packages (bash, make, coreutils, python3.10, curl, gawk,
+   grep, sed, findutils, haikuporter).
+4. Image: a disk image with the bootstrap packages, the native toolchain,
+   haikuporter and a ports tree, large enough for the work directories.
+5. Run in IRIS: a job boots the image with 256 MB, runs haikuporter for one
+   shard of ports over the serial console, and copies the packages out of the
+   disk image. A job lasts at most 6 hours; the shard size follows the speed
+   measured in stage 5.
+6. Packages that need a host tool to start (the first python3, perl) stay
+   cross built.
+
 ## 9. Risks and open problems
 
 - **GCC 17 with this tree.** Upstream builds with GCC 13. Expect new errors
