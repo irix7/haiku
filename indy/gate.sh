@@ -14,7 +14,7 @@
 #                   short: a Unix socket path is limited to about 107 bytes.
 #   MONITOR_PORT    iris monitor port (default 18931). Concurrent runs need
 #                   different ports and work directories.
-#   RAM             megabytes of RAM in bank 0: 8, 16, 32, 64 or 128
+#   RAM             megabytes of RAM: 8, 16, 32, 64, 128 or 256 (two banks)
 #                   (default 64)
 #   DISK            raw disk image to attach as SCSI ID 1
 #   BOOT_ARGS       words added to the PROM boot command, for example "disk"
@@ -39,6 +39,14 @@ IRIS_CI="${IRIS_CI:-/mnt/europa/iris/target/release/iris-ci}"
 WORK="${WORK:-$TOP/generated.mips/gate}"
 MONITOR_PORT="${MONITOR_PORT:-18931}"
 RAM="${RAM:-64}"
+# A bank holds at most 128 MB. RAM above that fills the next banks. The kernel
+# uses the RAM that is contiguous from 0x08000000, which is 256 MB: two banks.
+BANKS=$(python3 -c "
+r = $RAM
+b = []
+while r > 0 and len(b) < 4:
+    b.append(min(r, 128)); r -= b[-1]
+print(', '.join(str(x) for x in b + [0] * (4 - len(b))))")
 DISK="${DISK:-}"
 
 for path in "$IMAGE" "$IRIS" "$IRIS_CI" ${DISK:+"$DISK"}; do
@@ -55,7 +63,7 @@ cp "$IMAGE" "$WORK/tftp/haiku"
 
 {
 	cat <<TOML
-banks = [$RAM, 0, 0, 0]
+banks = [$BANKS]
 no_audio = true
 headless = true
 nvram = "$WORK/nvram.bin"

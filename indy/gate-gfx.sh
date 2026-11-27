@@ -30,6 +30,14 @@ IRIS_CI="${IRIS_CI:-/mnt/europa/iris/target/release/iris-ci}"
 WORK="${WORK:-$TOP/generated.mips/gate-gfx}"
 MONITOR_PORT="${MONITOR_PORT:-18932}"
 RAM="${RAM:-64}"
+# A bank holds at most 128 MB. RAM above that fills the next banks. The kernel
+# uses the RAM that is contiguous from 0x08000000, which is 256 MB: two banks.
+BANKS=$(python3 -c "
+r = $RAM
+b = []
+while r > 0 and len(b) < 4:
+    b.append(min(r, 128)); r -= b[-1]
+print(', '.join(str(x) for x in b + [0] * (4 - len(b))))")
 DISK="${DISK:-}"
 SETTLE="${SETTLE:-2}"
 
@@ -48,7 +56,7 @@ cp "$IMAGE" "$WORK/tftp/haiku"
 
 {
 	cat <<TOML
-banks = [$RAM, 0, 0, 0]
+banks = [$BANKS]
 no_audio = true
 nvram = "$WORK/nvram.bin"
 ${CONFIG_TOP:-}
