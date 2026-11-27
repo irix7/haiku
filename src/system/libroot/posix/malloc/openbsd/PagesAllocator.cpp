@@ -24,7 +24,8 @@ static const size_t kPageSize = B_PAGE_SIZE;
 
 /*! The "largest useful" chunk size: any allocations larger than this
  * will get their own area, rather than sharing the common one(s). */
-static const size_t kLargestUsefulChunk = 512 * kPageSize;
+static const size_t kLargestUsefulChunk = 2 * 1024 * 1024;
+	// 512 pages of 4 kB
 
 /*! Amount of virtual address space to reserve when creating new areas. */
 /* (The Haiku kernel will ignore reservations if there's no other address
@@ -38,10 +39,12 @@ static const size_t kFreePercentage = 25;
 static const size_t kFreeMaximum = 128 * 1024 * 1024;
 
 /*! Always allow this much free memory, even if it's above kFreePercentage. */
-static const size_t kFreeMinimum = 128 * kPageSize;
+static const size_t kFreeMinimum = 512 * 1024;
+	// 128 pages of 4 kB
 
 /*! When a free chunk encompasses a whole area and is smaller than this, unmap it. */
-static const size_t kMinimumFreeAreaSize = 16 * kPageSize;
+static const size_t kMinimumFreeAreaSize = 64 * 1024;
+	// 16 pages of 4 kB
 
 
 namespace {

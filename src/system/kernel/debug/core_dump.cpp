@@ -1127,7 +1127,7 @@ private:
 		header.e_machine = EM_PPC64;
 #elif defined(__HAIKU_ARCH_M68K)
 		header.e_machine = EM_68K;
-#elif defined(__HAIKU_ARCH_MIPSEL)
+#elif defined(__HAIKU_ARCH_MIPS)
 		header.e_machine = EM_MIPS;
 #elif defined(__HAIKU_ARCH_ARM)
 		header.e_machine = EM_ARM;

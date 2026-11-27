@@ -1,11 +1,11 @@
 name			haiku_unittests
 version			%HAIKU_VERSION%
 architecture	%HAIKU_PACKAGING_ARCH%
-summary			"Haiku unit tests"
-description 	"Unit tests to ensure the continued stability of Haiku"
+summary			"Muse unit tests"
+description 	"Unit tests to ensure the continued stability of Muse"
 
-packager		"The Haiku build system"
-vendor			"Haiku Project"
+packager		"The Muse build system"
+vendor			"Muse Project"
 
 copyrights		"2007-2026 Haiku, Inc."
 licenses		MIT

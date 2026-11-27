@@ -2158,6 +2158,12 @@ main(int argc, char* argv[])
 	dup2(STDOUT_FILENO, STDERR_FILENO);
 #endif
 
+#ifdef __mips__
+	// Marker of the M5 gate of the SGI Indy port (indy-plan.md): the first
+	// userland program runs.
+	debug_printf("muse: m5 userland\n");
+#endif
+
 	status_t status;
 	LaunchDaemon* daemon = new LaunchDaemon(false, status);
 	if (status == B_OK)

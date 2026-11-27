@@ -231,6 +231,12 @@ do {                                              \
   (d) = asfloat(w);                               \
 } while (0)
 
+/* Haiku's <math.h> does not declare these. exp10l(), sincosl() and
+   __fpclassifyl() call them where long double is double. */
+double exp10(double);
+void sincos(double, double *, double *);
+int __fpclassify(double);
+
 hidden int    __rem_pio2_large(double*,double*,int,int,int);
 
 hidden int    __rem_pio2(double,double*);

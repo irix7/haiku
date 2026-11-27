@@ -1,0 +1,37 @@
+SubDir HAIKU_TOP src system boot platform arcs ;
+
+SubDirHdrs $(HAIKU_TOP) headers private kernel boot platform arcs ;
+SubDirHdrs $(HAIKU_TOP) src system boot arch $(TARGET_KERNEL_ARCH_DIR) ;
+
+UsePrivateHeaders [ FDirName kernel disk_device_manager ] ;
+UsePrivateHeaders [ FDirName graphics common ] ;
+UsePrivateHeaders [ FDirName storage ] ;
+
+{
+	SubDirC++Flags -fno-rtti ;
+}
+
+SEARCH on [ FGristFiles $(genericPlatformSources) ]
+	= [ FDirName $(HAIKU_TOP) src system boot platform generic ] ;
+
+local platform ;
+for platform in [ MultiBootSubDirSetup arcs ] {
+	on $(platform) {
+		BootMergeObject boot_platform_arcs.o :
+			# must come first: it holds the entry point
+			crt0.S
+
+			start.cpp
+			entry.S
+			debug.cpp
+			console.cpp
+			cpu.cpp
+			mmu.cpp
+			devices.cpp
+			menu.cpp
+			video.cpp
+			: :
+			boot_platform_generic_arcs.a
+		;
+	}
+}

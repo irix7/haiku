@@ -14,7 +14,9 @@
 /** Size of the stack given to teams in user space */
 #define USER_STACK_GUARD_SIZE		(4 * B_PAGE_SIZE)		// 16 kB
 #define MIN_USER_STACK_SIZE			(2 * B_PAGE_SIZE)		// 8 kB
-#define MAX_USER_STACK_SIZE			(16384 * B_PAGE_SIZE)	// 64 MB
+#define MAX_USER_STACK_SIZE			(64 * 1024 * 1024)
+	// a size in bytes: the mips port has pages of 16 kB, and 16384 of them do
+	// not fit into its stack region
 #define USER_MAIN_THREAD_STACK_SIZE	MAX_USER_STACK_SIZE
 #define USER_STACK_SIZE				(64 * B_PAGE_SIZE)		// 256 kB
 

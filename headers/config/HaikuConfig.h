@@ -43,10 +43,14 @@
 #	define __HAIKU_ARCH_ABI				"m68k"
 #	define __HAIKU_ARCH_M68K			1
 #	define __HAIKU_BIG_ENDIAN			1
-#elif defined(__MIPSEL__)
-#	define __HAIKU_ARCH					mipsel
-#	define __HAIKU_ARCH_ABI				"mipsel"
-#	define __HAIKU_ARCH_MIPSEL			1
+#elif defined(__mips__) && defined(__MIPSEB__)
+	/* GCC predefines "mips" as 1 in the GNU dialects. The name is used as a
+	   path component in __HAIKU_ARCH_HEADER() below. */
+#	undef mips
+#	define __HAIKU_ARCH					mips
+#	define __HAIKU_ARCH_ABI				"mips"
+#	define __HAIKU_ARCH_MIPS			1
+#	define __HAIKU_BIG_ENDIAN			1
 #elif defined(__ARMEL__) || defined(__arm__)
 #	define __HAIKU_ARCH					arm
 #	define __HAIKU_ARCH_ABI				"arm"

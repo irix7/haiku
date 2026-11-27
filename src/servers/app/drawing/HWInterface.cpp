@@ -661,6 +661,10 @@ HWInterface::_CopyToFront(uint8* src, uint32 srcBPR, int32 x, int32 y,
 	uint8* dst = (uint8*)frontBuffer->Bits();
 	uint32 dstBPR = frontBuffer->BytesPerRow();
 
+	// the loops below advance x and y
+	const int32 updatedLeft = x;
+	const int32 updatedTop = y;
+
 	// transfer, handle colorspace conversion
 	switch (frontBuffer->ColorSpace()) {
 		case B_RGB32:
@@ -875,6 +879,15 @@ HWInterface::_CopyToFront(uint8* src, uint32 srcBPR, int32 x, int32 y,
 				"front buffer format! (0x%x)\n", frontBuffer->ColorSpace());
 			break;
 	}
+
+	_FrontBufferUpdated(updatedLeft, updatedTop, right, bottom);
+}
+
+
+void
+HWInterface::_FrontBufferUpdated(int32 left, int32 top, int32 right,
+	int32 bottom) const
+{
 }
 
 

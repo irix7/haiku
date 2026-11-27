@@ -57,8 +57,8 @@ main(stage2_args *args)
 	if (vfs_init(args) < B_OK)
 		panic("Could not initialize VFS!\n");
 
-	dprintf("Welcome to the Haiku boot loader!\n");
-	dprintf("Haiku revision: %s\n", get_haiku_revision());
+	dprintf("Welcome to the Muse boot loader!\n");
+	dprintf("Muse revision: %s\n", get_haiku_revision());
 
 	bool mountedAllVolumes = false;
 

@@ -25,6 +25,8 @@
 #	include "arch/m68k/syscalls.inc"
 #elif defined(ARCH_riscv64)
 #	include "arch/riscv64/syscalls.inc"
+#elif defined(ARCH_mips)
+#	include "arch/mips/syscalls.inc"
 #else
 #error	No syscalls macros defined for this architecture!
 #endif

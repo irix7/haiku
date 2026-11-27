@@ -90,6 +90,10 @@ count_regions(const char* imagePath, char const* buff, int phnum, int phentsize)
 				break;
 			case PT_RISCV_ATTRIBUTES:
 				// TODO: check ABI compatibility attributes
+				// PT_MIPS_ABIFLAGS has the same number
+				break;
+			case PT_MIPS_REGINFO:
+				// register usage of the image, not needed
 				break;
 			default:
 				FATAL("%s: Unhandled pheader type in count 0x%" B_PRIx32 "\n",
@@ -206,6 +210,10 @@ parse_program_headers(image_t* image, char* buff, int phnum, int phentsize)
 				break;
 			case PT_RISCV_ATTRIBUTES:
 				// TODO: check ABI compatibility attributes
+				// PT_MIPS_ABIFLAGS has the same number
+				break;
+			case PT_MIPS_REGINFO:
+				// register usage of the image, not needed
 				break;
 			default:
 				FATAL("%s: Unhandled pheader type in parse 0x%" B_PRIx32 "\n",

@@ -20,6 +20,12 @@ extern int arch_elf_relocate_rel(struct elf_image_info *image,
 	struct elf_image_info *resolve_image, elf_rel *rel, int rel_len);
 extern int arch_elf_relocate_rela(struct elf_image_info *image,
 	struct elf_image_info *resolve_image, elf_rela *rel, int rel_len);
+#ifdef __mips__
+/* The global offset table of a MIPS image has no relocation entries. This
+   relocates it, and makes the instruction cache see the loaded code. */
+extern int arch_elf_relocate_got(struct elf_image_info *image,
+	struct elf_image_info *resolve_image);
+#endif
 
 #ifdef __cplusplus
 }

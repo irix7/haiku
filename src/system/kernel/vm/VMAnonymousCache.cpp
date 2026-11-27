@@ -71,7 +71,8 @@
 
 
 // number of free swap blocks the object cache shall minimally have
-#define MIN_SWAP_BLOCK_RESERVE	4096
+#define MIN_SWAP_BLOCK_RESERVE	(4096 * 4096 / B_PAGE_SIZE)
+	// blocks for 512 MB of swapped pages
 
 // interval the has resizer is triggered (in 0.1s)
 #define SWAP_HASH_RESIZE_INTERVAL	5

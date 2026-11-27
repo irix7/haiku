@@ -147,6 +147,8 @@
 #   define ZYAN_PPC
 #elif defined(__riscv) && __riscv_xlen == 64
 #   define ZYAN_RISCV64
+#elif defined(__mips__) && !defined(__LP64__)
+#   define ZYAN_MIPS
 #else
 #   error "Unsupported architecture detected"
 #endif

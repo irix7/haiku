@@ -36,6 +36,35 @@ mutex gControllerLock;
 static int32 sIgnoreInterrupts = 0;
 
 
+#ifdef __mips__
+// The Indy's keyboard interrupt is level triggered: it stays asserted until
+// the data port is read. A handler that returns without reading would be
+// entered again at once, so the input is masked while the interrupts are
+// ignored. All callers hold gControllerLock.
+extern "C" void arch_int_enable_io_interrupt(int32 irq);
+extern "C" void arch_int_disable_io_interrupt(int32 irq);
+static bool sHandlersInstalled = false;
+#endif
+
+
+static void
+ignore_interrupts(bool ignore)
+{
+	if (ignore) {
+#ifdef __mips__
+		arch_int_disable_io_interrupt(INT_PS2_KEYBOARD);
+#endif
+		atomic_add(&sIgnoreInterrupts, 1);
+	} else {
+		atomic_add(&sIgnoreInterrupts, -1);
+#ifdef __mips__
+		if (sHandlersInstalled)
+			arch_int_enable_io_interrupt(INT_PS2_KEYBOARD);
+#endif
+	}
+}
+
+
 uint8
 ps2_read_ctrl(void)
 {
@@ -103,7 +132,7 @@ ps2_flush(void)
 	int i;
 
 	mutex_lock(&gControllerLock);
-	atomic_add(&sIgnoreInterrupts, 1);
+	ignore_interrupts(true);
 
 	for (i = 0; i < 64; i++) {
 		uint8 ctrl;
@@ -116,7 +145,7 @@ ps2_flush(void)
 		snooze(100);
 	}
 
-	atomic_add(&sIgnoreInterrupts, -1);
+	ignore_interrupts(false);
 	mutex_unlock(&gControllerLock);
 }
 
@@ -149,6 +178,11 @@ ps2_setup_command_byte(bool interruptsEnabled)
 		cmdbyte = 0x47;
 
 	cmdbyte |= PS2_BITS_TRANSLATE_SCANCODES;
+#ifdef __mips__
+	// The SGI Indy's controller is left untranslated. The keyboard is
+	// switched to scancode set 1 instead (see probe_keyboard()).
+	cmdbyte &= ~PS2_BITS_TRANSLATE_SCANCODES;
+#endif
 	cmdbyte &= ~(PS2_BITS_KEYBOARD_DISABLED | PS2_BITS_MOUSE_DISABLED);
 
 	if (interruptsEnabled)
@@ -215,7 +249,7 @@ ps2_setup_active_multiplexing(bool *enabled)
 	// The flow is similar to a ps2_command, but we need to check this specific bit in the middle
 	// of the operation (before reading the data byte).
 	mutex_lock(&gControllerLock);
-	atomic_add(&sIgnoreInterrupts, 1);
+	ignore_interrupts(true);
 
 	res = ps2_wait_write();
 	if (res != B_OK) {
@@ -252,13 +286,13 @@ ps2_setup_active_multiplexing(bool *enabled)
 		goto no_support_unlock;
 	}
 
-	atomic_add(&sIgnoreInterrupts, -1);
+	ignore_interrupts(false);
 	mutex_unlock(&gControllerLock);
 	*enabled = true;
 	goto done;
 
 no_support_unlock:
-	atomic_add(&sIgnoreInterrupts, -1);
+	ignore_interrupts(false);
 	mutex_unlock(&gControllerLock);
 no_support:
 	TRACE("ps2: active multiplexing not supported\n");
@@ -292,7 +326,7 @@ ps2_command(uint8 cmd, const uint8 *out, int outCount, uint8 *in, int inCount)
 	int i;
 
 	mutex_lock(&gControllerLock);
-	atomic_add(&sIgnoreInterrupts, 1);
+	ignore_interrupts(true);
 
 #ifdef TRACE_PS2_COMMON
 	TRACE("ps2: ps2_command cmd 0x%02x, out %d, in %d\n", cmd, outCount, inCount);
@@ -326,7 +360,7 @@ ps2_command(uint8 cmd, const uint8 *out, int outCount, uint8 *in, int inCount)
 	TRACE("ps2: ps2_command result 0x%08" B_PRIx32 "\n", res);
 #endif
 
-	atomic_add(&sIgnoreInterrupts, -1);
+	ignore_interrupts(false);
 	mutex_unlock(&gControllerLock);
 
 	return res;
@@ -426,6 +460,10 @@ ps2_init(void)
 	if (status)
 		goto err4;
 
+#ifdef __mips__
+	sHandlersInstalled = true;
+#endif
+
 	// While this might have fixed bug #1185, we can't do this unconditionally
 	// as it obviously messes up many controllers which couldn't reboot anymore
 	// after that
@@ -499,6 +537,9 @@ void
 ps2_uninit(void)
 {
 	TRACE("ps2: uninit\n");
+#ifdef __mips__
+	sHandlersInstalled = false;
+#endif
 	remove_io_interrupt_handler(INT_PS2_MOUSE,    &ps2_interrupt, NULL);
 	remove_io_interrupt_handler(INT_PS2_KEYBOARD, &ps2_interrupt, NULL);
 	ps2_service_exit();

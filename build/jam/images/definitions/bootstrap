@@ -4,9 +4,13 @@
 include [ FDirName $(HAIKU_BUILD_RULES_DIR) images definitions minimum ] ;
 
 # build and add the source package directory and a haikuports.config file
-CopyDirectoryToHaikuImage home haikuports
-	: [ BuildHaikuPortsSourcePackageDirectory ]
-	: input-source-packages : -x  *_source-*.hpkg : isTarget ;
+# mips has no HaikuPorts package list and no compiler package yet, so its image
+# gets no source packages.
+if $(TARGET_ARCH) != mips {
+	CopyDirectoryToHaikuImage home haikuports
+		: [ BuildHaikuPortsSourcePackageDirectory ]
+		: input-source-packages : -x  *_source-*.hpkg : isTarget ;
+}
 AddFilesToHaikuImage home haikuports
 	: [ BuildHaikuPortsRepositoryConfig /boot/home/haikuports ] ;
 

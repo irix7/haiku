@@ -351,8 +351,10 @@ typedef struct {
 #define PT_RELRO		0x6474e552
 
 #define PT_LOPROC		0x70000000
+#define PT_MIPS_REGINFO	0x70000000
 #define PT_ARM_UNWIND	0x70000001
 #define PT_RISCV_ATTRIBUTES	0x70000003
+#define PT_MIPS_ABIFLAGS	0x70000003
 #define PT_HIPROC		0x7fffffff
 
 /* program header segment flags */

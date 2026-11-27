@@ -230,6 +230,20 @@ extern bool debug_is_debugged_team(team_id teamID);
 
 extern struct arch_debug_registers* debug_get_debug_registers(int32 cpu);
 
+// The GDB stub (debug/gdb.cpp). The signals are those of GDB's remote
+// protocol, which differ from the signal numbers of Haiku.
+#define GDB_SIGNAL_INT			2
+#define GDB_SIGNAL_ILL			4
+#define GDB_SIGNAL_TRAP			5
+#define GDB_SIGNAL_ABRT			6
+#define GDB_SIGNAL_FPE			8
+#define GDB_SIGNAL_BUS			10
+#define GDB_SIGNAL_SEGV			11
+
+extern bool		debug_gdb_attached(void);
+extern void		debug_gdb_set_stop_signal(int32 signal);
+extern bool		debug_gdb_trap(int32 signal);
+
 extern status_t _user_kernel_debugger(const char *message);
 extern void _user_register_syslog_daemon(port_id port);
 extern void	_user_debug_output(const char *userString);

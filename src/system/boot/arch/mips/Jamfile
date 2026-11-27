@@ -1,0 +1,29 @@
+SubDir HAIKU_TOP src system boot arch mips ;
+
+SubDirC++Flags -fno-rtti ;
+
+local librootArchSources =
+	byteorder.S
+;
+
+local kernelArchSources =
+	arch_elf.cpp
+;
+
+local platform ;
+for platform in [ MultiBootSubDirSetup arcs ] {
+	on $(platform) {
+		BootMergeObject [ FGristFiles boot_arch_$(TARGET_KERNEL_ARCH).o ] :
+			$(kernelArchSources)
+			$(librootArchSources)
+			arch_cpu.cpp
+			: # additional flags
+		;
+
+		SEARCH on [ FGristFiles $(librootArchSources) ]
+			= [ FDirName $(HAIKU_TOP) src system libroot os arch mips ] ;
+		SEARCH on [ FGristFiles $(kernelArchSources) ]
+			= [ FDirName $(HAIKU_TOP) src system kernel arch
+				$(TARGET_KERNEL_ARCH_DIR) ] ;
+	}
+}

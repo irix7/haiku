@@ -130,7 +130,7 @@ LoginApp::ArgvReceived(int32 argc, char **argv)
 		else if (arg == "--nonmodal")
 			fModalMode = false;
 		else /*if (arg == "--help")*/ {
-			puts(B_TRANSLATE("Login application for Haiku\nUsage:"));
+			puts(B_TRANSLATE("Login application for Muse\nUsage:"));
 			printf("%s [--nonmodal] [--edit]\n", argv[0]);
 			puts(B_TRANSLATE("--nonmodal	Do not make the window modal"));
 			puts(B_TRANSLATE("--edit	Launch in shelf editing mode to "

@@ -1,0 +1,16 @@
+# No HaikuPorts packages exist for mips yet. The kernel and the boot loader
+# build with the seed directory (build/jam/BuildFeatures). The packages for a
+# full image come from the bootstrap build (HaikuPortsCross/mips).
+RemotePackageRepository HaikuPorts
+	: mips
+	: https://eu.hpkg.haiku-os.org/haikuports/master/build-packages
+	:
+	# architecture "any" packages
+	:
+	# repository architecture packages
+	# primary architecture (mips)
+	:
+	# source packages
+	:
+	# debuginfo packages
+;

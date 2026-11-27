@@ -68,6 +68,8 @@
 #define CACHE_LINE_SIZE 64
 #elif defined(__powerpc__)
 #define CACHE_LINE_SIZE 128
+#elif defined(__mips__)
+#define CACHE_LINE_SIZE 32
 #elif defined(__M68K__)
 #define CACHE_LINE_SIZE 16
 #else

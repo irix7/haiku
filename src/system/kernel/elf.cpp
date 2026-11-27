@@ -1205,6 +1205,12 @@ elf_relocate(struct elf_image_info* image, struct elf_image_info* resolveImage)
 
 	TRACE(("elf_relocate(%p (\"%s\"))\n", image, image->name));
 
+#ifdef __mips__
+	status = arch_elf_relocate_got(image, resolveImage);
+	if (status < B_OK)
+		return status;
+#endif
+
 	// deal with the rels first
 	if (image->rel) {
 		TRACE(("total %i rel relocs\n", image->rel_len / (int)sizeof(elf_rel)));
@@ -2441,6 +2447,10 @@ load_kernel_add_on(const char *path)
 				continue;
 			case PT_RISCV_ATTRIBUTES:
 				// TODO: check ABI compatibility attributes
+				// PT_MIPS_ABIFLAGS has the same number
+				continue;
+			case PT_NULL:
+			case PT_MIPS_REGINFO:
 				continue;
 			default:
 				dprintf("%s: unhandled pheader type %#" B_PRIx32 "\n", fileName,

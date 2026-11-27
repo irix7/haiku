@@ -52,6 +52,7 @@
 #include "debug_commands.h"
 #include "debug_output_filter.h"
 #include "debug_variables.h"
+#include "gdb.h"
 
 
 #if __GNUC__ == 2
@@ -180,13 +181,55 @@ DebugOutputFilter::Print(const char* format, va_list args)
 }
 
 
+// Defaults for architectures without these hooks.
+
+__attribute__((weak)) void
+arch_debug_enter_debugger(void)
+{
+}
+
+
+__attribute__((weak)) void
+arch_debug_exit_debugger(void)
+{
+}
+
+
+__attribute__((weak)) bool
+arch_debug_gdb_uses_serial_port(void)
+{
+	return true;
+}
+
+
+//!	Returns whether a GDB is attached through the serial debug port.
+static bool
+gdb_on_serial_port()
+{
+	return debug_gdb_attached() && arch_debug_gdb_uses_serial_port();
+}
+
+
+/*!	Writes to the serial debug port. A GDB that is attached through the port
+	gets the text as console output instead.
+*/
+static void
+serial_puts(const char* string, size_t length)
+{
+	if (gdb_on_serial_port())
+		gdb_stub_console_output(string, length);
+	else
+		arch_debug_serial_puts(string);
+}
+
+
 void
 DefaultDebugOutputFilter::PrintString(const char* string)
 {
 	size_t length = strlen(string);
 
 	if (sSerialDebugEnabled)
-		arch_debug_serial_puts(string);
+		serial_puts(string, length);
 	if (sSyslogOutputEnabled)
 		syslog_write(string, length, false);
 	if (sBlueScreenEnabled || sDebugScreenEnabled)
@@ -223,8 +266,12 @@ set_debug_output_filter(DebugOutputFilter* filter)
 static void
 kputchar(char c)
 {
-	if (sSerialDebugEnabled)
-		arch_debug_serial_putchar(c);
+	if (sSerialDebugEnabled) {
+		if (gdb_on_serial_port())
+			gdb_stub_console_output(&c, 1);
+		else
+			arch_debug_serial_putchar(c);
+	}
 	if (sBlueScreenEnabled || sDebugScreenEnabled)
 		blue_screen_putchar(c);
 	for (uint32 i = 0; sSerialDebugEnabled && i < kMaxDebuggerModules; i++)
@@ -667,8 +714,10 @@ read_line(char* buffer, int32 maxLength,
 					 * we assume we are talking with GDB
 					 */
 					if (position == 0) {
-						strcpy(buffer, "gdb");
-						position = 4;
+						// The '$' starts a packet, which the stub has to
+						// read to its end.
+						strcpy(buffer, c == '$' ? "gdb packet" : "gdb");
+						position = strlen(buffer) + 1;
 						done = true;
 						break;
 					}
@@ -836,8 +885,15 @@ kernel_debugger_loop(const char* messagePrefix, const char* message,
 			smp_get_num_cpus() - (sCPUsTrapped + 1), smp_get_num_cpus());
 	}
 
-	kprintf("Welcome to Kernel Debugging Land...\n");
-	kprintf("revision: %s\n", get_haiku_revision());
+	// A breakpoint or a single step of an attached GDB: the stop is reported
+	// to GDB only.
+	bool quiet = debug_gdb_attached() && messagePrefix == NULL
+		&& message == NULL;
+
+	if (!quiet) {
+		kprintf("Welcome to Kernel Debugging Land...\n");
+		kprintf("revision: %s\n", get_haiku_revision());
+	}
 
 	// Set a few temporary debug variables and print on which CPU and in which
 	// thread we are running.
@@ -845,7 +901,8 @@ kernel_debugger_loop(const char* messagePrefix, const char* message,
 
 	Thread* thread = thread_get_current_thread();
 	if (thread == NULL) {
-		kprintf("Running on CPU %" B_PRId32 "\n", sDebuggerOnCPU);
+		if (!quiet)
+			kprintf("Running on CPU %" B_PRId32 "\n", sDebuggerOnCPU);
 	} else if (!debug_is_kernel_memory_accessible((addr_t)thread,
 			sizeof(Thread), B_KERNEL_READ_AREA)) {
 		kprintf("Running on CPU %" B_PRId32 "\n", sDebuggerOnCPU);
@@ -856,8 +913,10 @@ kernel_debugger_loop(const char* messagePrefix, const char* message,
 		set_debug_variable("_thread", (uint64)(addr_t)thread);
 		set_debug_variable("_threadID", thread->id);
 
-		kprintf("Thread %" B_PRId32 " \"%.64s\" running on CPU %" B_PRId32 "\n",
-			thread->id, thread->name, sDebuggerOnCPU);
+		if (!quiet) {
+			kprintf("Thread %" B_PRId32 " \"%.64s\" running on CPU %" B_PRId32
+				"\n", thread->id, thread->name, sDebuggerOnCPU);
+		}
 
 		if (thread->cpu != gCPU + cpu) {
 			kprintf("The thread's CPU pointer is %p, but should be %p.\n",
@@ -904,7 +963,12 @@ kernel_debugger_loop(const char* messagePrefix, const char* message,
 		// Index of the previous command line, if the command returned
 		// B_KDEBUG_CONT, i.e. asked to be repeatable, -1 otherwise.
 
-	for (;;) {
+	// An attached GDB takes the place of the prompt, until it resumes the
+	// kernel or ends its session.
+	bool resume = debug_gdb_attached()
+		&& cmd_gdb(0, NULL) == B_KDEBUG_QUIT;
+
+	while (!resume) {
 		CommandLineEditingHelper editingHelper;
 		kprintf(kKDLPrompt);
 		char* line = sLineBuffer[sCurrentLine];
@@ -1013,6 +1077,9 @@ enter_kernel_debugger(int32 cpu, int32& previousCPU)
 
 	sDebuggedThread = NULL;
 
+	arch_debug_enter_debugger();
+	gdb_stub_debugger_entered();
+
 	// sort the commands
 	sort_debugger_commands();
 
@@ -1031,6 +1098,9 @@ exit_kernel_debugger()
 	sBlueScreenEnabled = false;
 	if (sDebugScreenEnabled)
 		blue_screen_enter(true);
+
+	gdb_stub_debugger_exiting();
+	arch_debug_exit_debugger();
 
 	atomic_add(&sInDebugger, -1);
 }
@@ -1551,7 +1621,7 @@ debug_output(const char* string, int32 length, bool notifySyslog)
 		flush_pending_repeats(notifySyslog);
 
 		if (sSerialDebugEnabled)
-			arch_debug_serial_puts(string);
+			serial_puts(string, length);
 		if (sSyslogOutputEnabled)
 			syslog_write(string, length, notifySyslog);
 		if (sBlueScreenEnabled || sDebugScreenEnabled)
@@ -1583,7 +1653,7 @@ flush_pending_repeats(bool notifySyslog)
 		length = std::min(length, sizeof(temp) - 1);
 
 		if (sSerialDebugEnabled)
-			arch_debug_serial_puts(temp);
+			serial_puts(temp, length);
 		if (sSyslogOutputEnabled)
 			syslog_write(temp, length, notifySyslog);
 		if (sBlueScreenEnabled || sDebugScreenEnabled)
@@ -1599,7 +1669,7 @@ flush_pending_repeats(bool notifySyslog)
 		size_t length = strlen(sLastOutputBuffer);
 
 		if (sSerialDebugEnabled)
-			arch_debug_serial_puts(sLastOutputBuffer);
+			serial_puts(sLastOutputBuffer, length);
 		if (sSyslogOutputEnabled)
 			syslog_write(sLastOutputBuffer, length, notifySyslog);
 		if (sBlueScreenEnabled || sDebugScreenEnabled)

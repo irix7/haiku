@@ -28,7 +28,7 @@
 
 #define BFS_IO_SIZE	65536
 
-#if defined(BFS_LITTLE_ENDIAN_ONLY)
+#if defined(BFS_LITTLE_ENDIAN_ONLY) || defined(BFS_ENDIAN_IS_DEFAULT)
 #define BFS_ENDIAN_SUFFIX ""
 #define BFS_ENDIAN_PRETTY_SUFFIX ""
 #else

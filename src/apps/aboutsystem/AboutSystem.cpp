@@ -1546,10 +1546,18 @@ AboutView::_CreateCreditsView()
 		fCreditsView, B_WILL_DRAW | B_FRAME_EVENTS, false, true,
 		B_PLAIN_BORDER);
 
-	// Haiku copyright
 	BFont font(be_bold_font);
 	font.SetSize(font.Size() + 4);
 
+	// Muse and its origin
+	fCreditsView->SetFontAndColor(&font, B_FONT_ALL, &fHaikuGreenColor);
+	fCreditsView->Insert("Muse\n");
+	fCreditsView->SetFontAndColor(be_plain_font, B_FONT_ALL, &fTextColor);
+	fCreditsView->Insert(B_TRANSLATE("Muse is a fork of the Haiku operating "
+		"system for the SGI Indy. It is not affiliated with Haiku, Inc. and "
+		"not endorsed by it.\n\n"));
+
+	// Haiku copyright
 	fCreditsView->SetFontAndColor(&font, B_FONT_ALL, &fHaikuGreenColor);
 	fCreditsView->Insert("Haiku\n");
 

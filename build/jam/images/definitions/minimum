@@ -262,6 +262,7 @@ SYSTEM_NETWORK_PROTOCOLS =
 ;
 
 SYSTEM_ADD_ONS_ACCELERANTS = [ FFilterByBuildFeatures
+	newport.accelerant@mips
 	x86,x86_64 @{
 		vesa.accelerant
 	}@ # x86,x86_64
@@ -296,6 +297,7 @@ SYSTEM_ADD_ONS_DRIVERS_AUDIO_OLD = ;
 
 SYSTEM_ADD_ONS_DRIVERS_GRAPHICS = [ FFilterByBuildFeatures
 	framebuffer
+	newport@mips
 	x86,x86_64 @{
 		vesa
 	}@ # x86,x86_64
@@ -309,6 +311,7 @@ SYSTEM_ADD_ONS_DRIVERS_GRAPHICS = [ FFilterByBuildFeatures
 SYSTEM_ADD_ONS_DRIVERS_MIDI = ;
 
 SYSTEM_ADD_ONS_DRIVERS_NET = [ FFilterByBuildFeatures
+	seeq8003@mips
 	x86,x86_64,riscv64,arm64 @{
 		3com
 		asix88xxx
@@ -339,9 +342,9 @@ SYSTEM_ADD_ONS_DRIVERS_NET = [ FFilterByBuildFeatures
 	}@ # x86,x86_64,riscv64,arm64
 
 	etherpci
-	usb_davicom
-	usb_ncm
-	usb_rndis
+	usb_davicom@!mips
+	usb_ncm@!mips
+	usb_rndis@!mips
 	wb840
 ] ;
 
@@ -365,14 +368,15 @@ SYSTEM_ADD_ONS_BUS_MANAGERS = [ FFilterByBuildFeatures
 	ata
 	hyperv@x86,x86_64
 	i2c@x86,x86_64
-	isa@x86,x86_64
+	isa@x86,x86_64,mips
+	indy@mips
 	mmc
 	scsi
 	pci
-	ps2@x86,x86_64
+	ps2@x86,x86_64,mips
 	fdt@riscv64,arm,arm64
 	random
-	usb
+	usb@!mips
 	virtio
 ] ;
 

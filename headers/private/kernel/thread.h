@@ -90,6 +90,8 @@ void thread_yield(void);
 void thread_exit(void);
 
 void thread_map(void (*function)(Thread* thread, void* data), void* data);
+void thread_debug_map(bool (*function)(Thread* thread, void* data),
+	void* data);
 
 int32 thread_max_threads(void);
 int32 thread_used_threads(void);

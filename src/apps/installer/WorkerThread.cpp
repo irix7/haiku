@@ -263,6 +263,9 @@ arch_efi_default_prefix()
 	return BString("BOOTRISCV64");
 #elif defined(__powerpc__)
 	return BString("BOOTPPC");
+#elif defined(__mips__)
+	// The ARCS firmware of the SGI machines does not read this directory.
+	return BString("BOOTMIPS");
 #else
 	#error "Error: Unknown EFI Architecture!"
 #endif
@@ -588,7 +591,7 @@ WorkerThread::_PerformInstall(partition_id sourcePartitionID,
 
 	if (entries != 0) {
 		BAlert* alert = new BAlert("", B_TRANSLATE("The target volume is not "
-			"empty. If it already contains a Haiku installation, it will be "
+			"empty. If it already contains a Muse installation, it will be "
 			"overwritten. This will remove all installed software.\n\n"
 			"If you want to upgrade your system without removing installed "
 			"software, see the Haiku User Guide's topic on the application "

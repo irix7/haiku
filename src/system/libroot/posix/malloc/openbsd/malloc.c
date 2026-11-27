@@ -67,14 +67,17 @@
 #define MASK_POINTER(p)		((void *)(((uintptr_t)(p)) & ~MALLOC_PAGEMASK))
 
 #define MALLOC_MAXCHUNK		(1 << MALLOC_MAXSHIFT)
-#define MALLOC_MAXCACHE		256
+/* Page counts below are those of 4 kB pages, scaled to the page size:
+   with 16 kB pages each pool would cache 1 MB of single pages. */
+#define MALLOC_PAGE_SCALE(n)	((n) >> (MALLOC_PAGESHIFT - 12))
+#define MALLOC_MAXCACHE		MALLOC_PAGE_SCALE(256)
 #define MALLOC_DELAYED_CHUNK_MASK	15
 #ifdef MALLOC_STATS
 #define MALLOC_INITIAL_REGIONS	512
 #else
 #define MALLOC_INITIAL_REGIONS	(MALLOC_PAGESIZE / sizeof(struct region_info))
 #endif
-#define MALLOC_DEFAULT_CACHE	64
+#define MALLOC_DEFAULT_CACHE	MALLOC_PAGE_SCALE(64)
 #define MALLOC_CHUNK_LISTS	4
 #define CHUNK_CHECK_LENGTH	32
 
@@ -131,8 +134,8 @@ LIST_HEAD(chunk_head, chunk_info);
  * Small cache is an array per size, big cache is one array with different
  * sized regions
  */
-#define MAX_SMALLCACHEABLE_SIZE	32
-#define MAX_BIGCACHEABLE_SIZE	512
+#define MAX_SMALLCACHEABLE_SIZE	MALLOC_PAGE_SCALE(32)
+#define MAX_BIGCACHEABLE_SIZE	MALLOC_PAGE_SCALE(512)
 /* If the total # of pages is larger than this, evict before inserting */
 #define BIGCACHE_FILL(sz)	(MAX_BIGCACHEABLE_SIZE * (sz) / 4)
 

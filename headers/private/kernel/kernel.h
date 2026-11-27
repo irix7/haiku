@@ -67,7 +67,9 @@ is_user_address_range(const void* addr, size_t size)
 	// At least, you then know that the stack overflows in this case :)
 
 /** Size of the kernel stack */
-#ifdef B_HAIKU_64_BIT
+#if defined(__mips__)
+	#define KERNEL_STACK_SIZE		(B_PAGE_SIZE * 1)	// 16 kB
+#elif defined(B_HAIKU_64_BIT)
 	#define KERNEL_STACK_SIZE		(B_PAGE_SIZE * 4)	// 16 kB
 #else
 	#define KERNEL_STACK_SIZE		(B_PAGE_SIZE * 3)	// 12 kB

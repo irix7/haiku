@@ -1,13 +1,13 @@
 name 			haiku
 version			%HAIKU_VERSION%
 architecture	%HAIKU_PACKAGING_ARCH%
-summary			"The Haiku base system"
+summary			"The Muse base system"
 
-description		"The Haiku base system includes all system core software, like
+description		"The Muse base system includes all system core software, like
 boot loader, kernel, the system libraries, servers, and applications."
 
-packager		"The Haiku build system"
-vendor			"Haiku Project"
+packager		"The Muse build system"
+vendor			"Muse Project"
 
 copyrights		"2001-2026 Haiku, Inc. et al"
 licenses {

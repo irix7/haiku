@@ -246,8 +246,8 @@ struct Query::QueryPolicy {
 			attributeName);
 		if (smallData != NULL) {
 			buffer = smallData->Data();
-			*type = smallData->type;
-			*size = smallData->data_size;
+			*type = smallData->Type();
+			*size = smallData->DataSize();
 		} else {
 			// needed to unlock the small_data section as fast as possible
 			holder.smallDataLocker.Unlock();
