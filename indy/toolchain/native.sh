@@ -29,6 +29,9 @@ export PATH="$PREFIX/bin:$PATH"
 export CC="$TARGET-gcc --sysroot=$HOSTSYSROOT"
 export CXX="$TARGET-g++ --sysroot=$HOSTSYSROOT"
 export CC_FOR_BUILD=gcc
+# The target is big-endian; the test fails on the headers of Haiku. The
+# configure scripts of the subdirectories inherit this.
+export ac_cv_c_bigendian=yes
 export CXX_FOR_BUILD=g++
 export LD_LIBRARY_PATH="${LD_LIBRARY_PATH:+$LD_LIBRARY_PATH:}$BOOTSTRAP/objects/linux/lib"
 
@@ -75,7 +78,7 @@ build_gcc() {
 	rm -rf "$ROOT/build/native-gcc"
 	mkdir -p "$ROOT/build/native-gcc"
 	cd "$ROOT/build/native-gcc"
-	CFLAGS="-O2" CXXFLAGS="-O2" "$ROOT/src/gcc/configure" \
+	CFLAGS="-O2" CXXFLAGS="-O2" LDFLAGS="-lnetwork" "$ROOT/src/gcc/configure" \
 		--build="$BUILD_MACHINE" --host=$TARGET --target=$TARGET \
 		--prefix=/boot/system --disable-nls --disable-shared \
 		--enable-languages=c,c++ --enable-lto --enable-frame-pointer \
@@ -88,7 +91,14 @@ build_gcc() {
 		--disable-libstdcxx-pch --disable-bootstrap \
 		--enable-multilib --with-arch=mips3 --with-tune=r4600 \
 		--with-abi=n32 --with-float=hard
-	make -j"$JOBS" all-gcc MAKEINFO=true
+	make_gcc
+}
+
+# The sarif sink of the driver uses socket and connect, which are in
+# libnetwork on Haiku.
+make_gcc() {
+	cd "$ROOT/build/native-gcc"
+	make -j"$JOBS" all-gcc MAKEINFO=true LDFLAGS=-lnetwork
 	make install-gcc DESTDIR="$STAGE" MAKEINFO=true
 }
 
@@ -96,6 +106,7 @@ case "$STEP" in
 	sysroot) sysroot ;;
 	binutils) build_binutils ;;
 	gcc) build_gcc ;;
+	gcc-make) make_gcc ;;
 	all) sysroot; build_binutils; build_gcc ;;
 	*) echo "usage: native.sh [sysroot|binutils|gcc|all]" >&2; exit 2 ;;
 esac
