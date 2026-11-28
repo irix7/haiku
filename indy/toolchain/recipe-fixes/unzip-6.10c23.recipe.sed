@@ -1,1 +1,1 @@
-s|^\tmake -f unix/Makefile haiku |\tsed -i 's/-lbe //' unix/Makefile\n\tmake -f unix/Makefile haiku |
+s|^\tmake -f unix/Makefile haiku |\tsed -i -e 's/-lbe //' -e 's/-DUNIX/-DUNIX -include wctype.h/g' unix/Makefile\n\tmake -f unix/Makefile haiku |
