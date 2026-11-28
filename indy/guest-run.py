@@ -52,7 +52,9 @@ def attempt(port, command, timeout):
 
 def main():
     port = int(sys.argv[1])
-    command = sys.argv[2].encode()
+    # the daemon starts with a PATH that lacks the system commands
+    command = ('export PATH=/boot/system/bin:/boot/system/non-packaged/bin:$PATH; '
+        + sys.argv[2]).encode()
     timeout = int(sys.argv[3]) if len(sys.argv) > 3 else 600
     # iris accepts the connection on the host before the daemon of the guest
     # runs, and resets it. Python starts slowly on the emulated CPU.

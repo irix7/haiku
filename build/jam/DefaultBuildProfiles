@@ -234,7 +234,15 @@ rule DefineDefaultBuildProfiles
 			AddHaikuImageSystemPackages
 				binutils
 				bison
+				bzip2
 				ca_root_certificates
+				diffutils
+				gettext
+				gzip
+				ninja
+				patch
+				tar
+				xz_utils
 				expat
 				findutils
 				flex
